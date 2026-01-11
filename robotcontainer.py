@@ -29,6 +29,7 @@ from commands.start_auto_timer import StartAutoTimer
 from commands.stop_auto_timer import StopAutoTimer
 from commands.pathfollowing_endpoint import PathfollowingEndpointClose
 from commands.wheel_radius_calculator import WheelRadiusCalculator
+from commands.launch import Launch
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -161,26 +162,36 @@ class RobotContainer:
                 self.drivetrain.apply_request(
                     lambda: (
                         self.drivetrain.drive_clt(
-                            self.drive_filter_y.calculate(self.driver_controller.getLeftY()) * self._max_speed * -1,
-                            self.drive_filter_x.calculate(self.driver_controller.getLeftX()) * self._max_speed * -1,
-                            self.driver_controller.getRightX() * -1
+                            self.drive_filter_y.calculate(
+                                self.deadband_controller(self.driver_controller.getLeftY())) * self._max_speed * -1,
+                            self.drive_filter_x.calculate(
+                                self.deadband_controller(self.driver_controller.getLeftX())) * self._max_speed * -1,
+                            self.deadband_controller(self.driver_controller.getRightX()) * -1
                         )
                     )
                 )
             )
 
+        # SLOW MODE, currently DISABLED
+        # self.driver_controller.rightTrigger().and_(lambda: not self.test_bindings).whileTrue(
+        #     self.drivetrain.apply_request(
+        #         lambda: (
+        #             self.drivetrain.drive_clt(
+        #                 self.drive_filter_y.calculate(
+        #                     self.driver_controller.getLeftY()) * self._max_speed * -1 * 0.2,
+        #                 self.drive_filter_x.calculate(
+        #                     self.driver_controller.getLeftX()) * self._max_speed * -1 * 0.2,
+        #                 self.driver_controller.getRightX() * -1 * 0.2
+        #             )
+        #         )
+        #     )
+        # )
+
+        # Prototype turn-to-target command. TELEOP ONLY.
         self.driver_controller.rightTrigger().and_(lambda: not self.test_bindings).whileTrue(
-            self.drivetrain.apply_request(
-                lambda: (
-                    self.drivetrain.drive_clt(
-                        self.drive_filter_y.calculate(
-                            self.driver_controller.getLeftY()) * self._max_speed * -1 * 0.2,
-                        self.drive_filter_x.calculate(
-                            self.driver_controller.getLeftX()) * self._max_speed * -1 * 0.2,
-                        self.driver_controller.getRightX() * -1 * 0.2
-                    )
-                )
-            )
+            Launch(self.drivetrain)
+        ).onFalse(
+            ResetCLT(self.drivetrain)
         )
 
         # POV Snap mode
@@ -280,6 +291,12 @@ class RobotContainer:
         return self.drivetrain.endpoint[0] - 0.02 < self.drivetrain.get_pose().x < self.drivetrain.endpoint[
             0] + 0.02 and self.drivetrain.endpoint[
             1] - 0.02 < self.drivetrain.get_pose().y < self.drivetrain.endpoint[1] + 0.02
+
+    def deadband_controller(self, joystick_input) -> float:
+        if -0.05 < joystick_input < 0.05:
+            return 0
+        else:
+            return joystick_input
 
     def registerCommands(self):
         NamedCommands.registerCommand("rainbow_leds", runOnce(lambda: self.leds.set_state("rainbow"),

@@ -2,7 +2,7 @@ import math
 from typing import Callable, overload
 
 from commands2 import Command, Subsystem, sysid
-from constants import AutoConstants
+from constants import AutoConstants, VisionConstants
 from pathplannerlib.auto import AutoBuilder
 from pathplannerlib.config import PIDConstants, RobotConfig
 from pathplannerlib.controller import PPHolonomicDriveController
@@ -265,25 +265,15 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             ),
         )
 
-        april_tag_field_layout = AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded)
-        cam1 = photonCamera.PhotonCamera("FRONT_ALIGN")
-        robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(5),inchesToMeters(0),  inchesToMeters(6)),
-                                    Rotation3d(0, degreesToRadians(0), degreesToRadians(0)))
+        self.photon_cam_array_3d = VisionConstants.robot_cameras_3d
+        self.photon_pose_array_3d = VisionConstants.robot_cameras_poses_3d
+        self.photon_cam_array_2d = VisionConstants.robot_cameras_2d
 
-        photon_pose_cam1 = (
-           photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-                                                   photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-                                                   cam1,
-                                                   robot_to_cam1))
-
-        self.photon_cam_array = [cam1]
-        self.photon_pose_array = [photon_pose_cam1]
-
-        self.used_tags = [6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22]
-        # self.used_tags = [2]
+        self.used_tags = VisionConstants.default_tags
 
         self.tag_seen = False
 
+        self.mode_3d = False
         self.target_yaw = -100000
         self.target_range = -100000
         self.target_id = -100000
@@ -305,15 +295,15 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
         if utils.is_simulation():
            # alert_photonvision_enabled.set(True)
            self.vision_sim = VisionSystemSim("main")
-           # self.vision_sim.addAprilTags(AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded)) # TODO Wait for photonlibypy to fix this
+           self.vision_sim.addAprilTags(AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded))
            camera_prop = SimCameraProperties()
            camera_prop.setCalibrationFromFOV(1280, 800, Rotation2d.fromDegrees(75))
            camera_prop.setCalibError(0.01, 0.01)
            camera_prop.setFPS(15)
            camera_prop.setAvgLatency(0.01)
            camera_prop.setLatencyStdDev(0.01)
-           cam1_sim = PhotonCameraSim(cam1, camera_prop)
-           self.vision_sim.addCamera(cam1_sim, robot_to_cam1)
+           cam1_sim = PhotonCameraSim(VisionConstants.cam1, camera_prop)
+           self.vision_sim.addCamera(cam1_sim, VisionConstants.robot_to_cam1)
 
 
     def apply_request(self, request: Callable[[], swerve.requests.SwerveRequest]) -> Command:
@@ -348,51 +338,70 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             self.vel_acc_periodic()
 
         # Update PhotonVision cameras in real-life scenarios.
-        if self.photon_cam_array[0].isConnected() and not utils.is_simulation():
-            self.update_2d_solution()
-            SmartDashboard.putNumber("Target Yaw", self.target_yaw)
-            SmartDashboard.putNumber("Target Range (in)", metersToInches(self.target_range))
-        #    self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
+        if self.photon_cam_array_3d[0].isConnected() and not utils.is_simulation():
+            if self.mode_3d:
+                self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
+            else:
+                self.update_2d_solution()
+                SmartDashboard.putNumber("Target Yaw", self.target_yaw)
+                SmartDashboard.putNumber("Target Range (in)", metersToInches(self.target_range))
 
         # If in simulation, update PhotonVision for sim.
         if utils.is_simulation():
             self.vision_sim.update(self.get_pose())
-            self.update_2d_solution()
-            SmartDashboard.putBoolean("Target in View", self.target_in_view)
-            SmartDashboard.putNumber("Target ID", self.target_id)
-            SmartDashboard.putNumber("Target Yaw", self.target_yaw)
-            SmartDashboard.putNumber("Target Range (in)", metersToInches(self.target_range))
-        #    self.select_best_vision_pose((1.5, 1.5, 9999999999999999999))
+            if self.mode_3d:
+                self.select_best_vision_pose((1.5, 1.5, 9999999999999999999))
+            else:
+                self.update_2d_solution()
+                SmartDashboard.putNumber("Target Yaw", self.target_yaw)
+                SmartDashboard.putNumber("Target Range (in)", metersToInches(self.target_range))
+                SmartDashboard.putBoolean("Target in View", self.target_in_view)
+                SmartDashboard.putNumber("Target ID", self.target_id)
 
     def update_2d_solution(self) -> None:
-        for i in self.photon_cam_array:
+        for i in self.photon_cam_array_2d:
             best_target = i.getLatestResult().getBestTarget()
             if best_target is not None:
                 self.target_in_view = True
                 self.target_id = best_target.fiducialId
-                if best_target.fiducialId in self.used_tags:
-                    self.target_yaw = best_target.yaw
+                if best_target.fiducialId in [2, 5, 10, 21, 18, 26]:
+                    # self.target_yaw = best_target.yaw
+                    self.target_yaw = self.calculate_target_offset(best_target.yaw)
                     self.target_range = self.get_range_from_2d_solution(best_target.pitch)
             else:
                 self.target_in_view = False
 
+    def calculate_target_offset(self, target_yaw: float) -> float:
+        detected_ids_list = []
+        for i in self.photon_cam_array_2d:
+            targets = i.getLatestResult().getTargets()
+            for j in targets:
+                detected_ids_list.append(j.fiducialId)
+        if 11 in detected_ids_list:
+            offset = 5
+        elif 8 in detected_ids_list:
+            offset = -5
+        elif 27 in detected_ids_list:
+            offset = 5
+        elif 24 in detected_ids_list:
+            offset = -5
+        else:
+            offset = 0
+
+        return target_yaw + offset
+
 
     def get_range_from_2d_solution(self, target_offset_angle: float) -> float:
-        target_height_in = 8  # TODO CHANGE THESE TO CONSTANTS
-        camera_height_in = 6  # TODO CHANGE THESE TO CONSTANTS
-        camera_mounting_angle = 0 # TODO CHANGE THESE TO CONSTANTS
-
-        angle_to_goal = degreesToRadians(camera_mounting_angle + target_offset_angle)
-
-        return inchesToMeters((target_height_in - camera_height_in) / math.tan(angle_to_goal))
+        return ((VisionConstants.target_height - VisionConstants.robot_cameras_2d_height) /
+                math.tan(degreesToRadians(VisionConstants.robot_cameras_2d_angle + target_offset_angle)))
 
 
     def select_best_vision_pose(self, stddevs: (float, float, float)) -> None:
         accepted_poses = []
         accepted_targets = []
-        for i in range(0, len(self.photon_cam_array)):
-            estimated_pose = self.photon_pose_array[i].update()
-            best_target_yeehaw = self.photon_cam_array[i].getLatestResult()
+        for i in range(0, len(self.photon_cam_array_3d)):
+            estimated_pose = self.photon_pose_array_3d[i].update()
+            best_target_yeehaw = self.photon_cam_array_3d[i].getLatestResult()
             best_target = best_target_yeehaw.getBestTarget()
             if best_target is not None:
                 if best_target_yeehaw.getBestTarget().fiducialId not in self.used_tags:
@@ -422,17 +431,25 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             SmartDashboard.putBoolean("Accepted new pose?", False)
 
     def set_used_tags(self, tags: str):
-        if tags == "red_reef":
-            self.used_tags = [6, 7, 8, 9, 10, 11]
-        elif tags == "blue_reef":
-            self.used_tags = [17, 18, 19, 20, 21, 22]
+        """Set the used set of tags. Options are 'red' for red alliance zone, 'blue' for blue alliance zone,
+        'neutral' for neutral zone, 'border' for tags on the field perimeter, and any other option will enable all
+        tags."""
+        if tags == "red":
+            self.used_tags = VisionConstants.red_alliance_tags
+        elif tags == "blue":
+            self.used_tags = VisionConstants.blue_alliance_tags
         elif tags == "border":
-            self.used_tags = [6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22]
+            self.used_tags = VisionConstants.border_tags
+        elif tags == "neutral":
+            self.used_tags = VisionConstants.neutral_zone_tags
         else:
-            self.used_tags = [6, 7, 8, 9, 10, 11, 17, 18, 19, 20, 21, 22]
+            self.used_tags = VisionConstants.default_tags
 
     def set_lockout_tag(self, tag: int) -> None:
         self.used_tags = [tag]
+
+    def set_3d(self, on: bool) -> None:
+        self.mode_3d = on
 
     def set_lookahead(self, on: bool) -> None:
         self.lookahead_active = on

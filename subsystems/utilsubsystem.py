@@ -19,7 +19,7 @@ class UtilSubsystem(Subsystem):
         self._received_game_data = False
         self._output_team_color = False
 
-        # FORMAT: X, Y, ANGLE, LOCATION NAME, APRILTAG FOR SERVOING
+        # FORMAT: X, Y, ANGLE, LOCATION NAME
         self.scoring_sides_red = [
             [13.766, 4.031, [
                 [13.280, 4.107, 180.001, "Red A Flipped"],

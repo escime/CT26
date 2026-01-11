@@ -19,7 +19,12 @@
     "###/Pose": {
       "Collapsed": "0",
       "Pos": "546,560",
-      "Size": "1477,745"
+      "Size": "1034,538"
+    },
+    "###/SmartDashboard/VisionSystemSim-main/Sim Field": {
+      "Collapsed": "0",
+      "Pos": "1582,555",
+      "Size": "1055,548"
     },
     "###FMS": {
       "Collapsed": "0",
@@ -29,7 +34,7 @@
     "###Joysticks": {
       "Collapsed": "0",
       "Pos": "9,1310",
-      "Size": "1516,249"
+      "Size": "1516,392"
     },
     "###NetworkTables": {
       "Collapsed": "0",
@@ -38,12 +43,12 @@
     },
     "###NetworkTables Info": {
       "Collapsed": "0",
-      "Pos": "500,260",
+      "Pos": "514,260",
       "Size": "1500,290"
     },
     "###Other Devices": {
       "Collapsed": "0",
-      "Pos": "2050,40",
+      "Pos": "2370,41",
       "Size": "500,1390"
     },
     "###System Joysticks": {
