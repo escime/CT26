@@ -16,6 +16,9 @@ class UtilSubsystem(Subsystem):
         self._inst = NetworkTableInstance.getDefault()
         self._table = self._inst.getTable("PyTimer")
 
+        self._received_game_data = False
+        self._output_team_color = False
+
         # FORMAT: X, Y, ANGLE, LOCATION NAME, APRILTAG FOR SERVOING
         self.scoring_sides_red = [
             [13.766, 4.031, [
@@ -109,3 +112,14 @@ class UtilSubsystem(Subsystem):
 
     def periodic(self) -> None:
         self._table.putNumber("Match Timer", DriverStation.getMatchTime())
+        if DriverStation.isTeleop() and not self._received_game_data:
+            _fms_game_data = str(DriverStation.getGameSpecificMessage())
+            if _fms_game_data == "B" or _fms_game_data == "R":
+                self._received_game_data = True
+                self._table.putString("Auto Winner", _fms_game_data)
+        if DriverStation.isDSAttached() and not self._output_team_color:
+            self._output_team_color = True
+            if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+                self._table.putString("Team Color", "R")
+            else:
+                self._table.putString("Team Color", "B")

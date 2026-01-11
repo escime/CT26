@@ -21,6 +21,13 @@
       }
     }
   },
+  "NetworkTables": {
+    "transitory": {
+      "PyTimer": {
+        "open": true
+      }
+    }
+  },
   "NetworkTables Info": {
     "visible": true
   }
