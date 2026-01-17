@@ -295,7 +295,7 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
         if utils.is_simulation():
            # alert_photonvision_enabled.set(True)
            self.vision_sim = VisionSystemSim("main")
-           self.vision_sim.addAprilTags(AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded))
+           self.vision_sim.addAprilTags(VisionConstants.april_tag_field_layout)
            camera_prop = SimCameraProperties()
            camera_prop.setCalibrationFromFOV(1280, 800, Rotation2d.fromDegrees(75))
            camera_prop.setCalibError(0.01, 0.01)
@@ -389,7 +389,6 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             offset = 0
 
         return target_yaw + offset
-
 
     def get_range_from_2d_solution(self, target_offset_angle: float) -> float:
         return ((VisionConstants.target_height - VisionConstants.robot_cameras_2d_height) /
@@ -584,12 +583,12 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
     def get_gp_alignment_heading(self) -> float:
         return self.get_pose().rotation().degrees() + self.tx
 
-    def get_goal_alignment_heading(self) -> float:
+    def get_goal_alignment_heading(self, time_compensation: float) -> float:
         """Returns the required target heading to point at a goal."""
         if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
-            return self.get_auto_lookahead_heading([13.058, 4.014], 0.3)
+            return self.get_auto_lookahead_heading(VisionConstants.red_hub_center, time_compensation) + 180
         else:
-            return self.get_auto_lookahead_heading([4.485, 4.014], 0.3)
+            return self.get_auto_lookahead_heading(VisionConstants.blue_hub_center, time_compensation) + 180
 
     def set_pathplanner_rotation_override(self, override: str) -> None:
         """Sets whether pathplanner uses an alternate heading controller."""
@@ -607,6 +606,18 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
                                current_pose.y + self.vy_new * time_compensation,
                                current_pose.rotation() + Rotation2d(self.omega_new * time_compensation))
         return math.atan2(target[1] - adjusted_pose.y, target[0] - adjusted_pose.x) * 180 / math.pi
+
+    def get_auto_lookahead_range_to_goal(self, time_compensation: float) -> float:
+        current_pose = self.get_pose()
+        adjusted_pose = Pose2d(current_pose.x + self.vx_new * time_compensation,
+                               current_pose.y + self.vy_new * time_compensation,
+                               current_pose.rotation() + Rotation2d(self.omega_new * time_compensation))
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.red_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.red_hub_center[1], 2))
+        else:
+            return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.blue_hub_center[1], 2))
 
     def pathfind_to_pose(self, target: [float, float, float]):
         """Command for pathfinding between current pose and a target pose in teleoperated."""
@@ -652,7 +663,11 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
                 .with_target_direction(self.target_direction))
 
     def set_clt_target_direction(self, direction: Rotation2d) -> None:
-        self.target_direction = direction
+        # self.target_direction = direction
+        if DriverStation.getAlliance() == DriverStation.Alliance.kBlue:
+            self.target_direction = Rotation2d.fromDegrees(direction.degrees() + 180)
+        else:
+            self.target_direction = direction
 
     def profiled_rotation_to_vis_target(self) -> swerve.requests:
         if self.ptttc.atGoal():

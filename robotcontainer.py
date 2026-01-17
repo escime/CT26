@@ -7,6 +7,8 @@ from constants import OIConstants
 from subsystems.ledsubsystem import LEDs
 from subsystems.utilsubsystem import UtilSubsystem
 from subsystems.command_swerve_drivetrain import ResetCLT, SetRotation, SetCLTTarget
+from subsystems.launchersubsystem import LauncherSubsystem
+
 from wpilib import SmartDashboard, SendableChooser, DriverStation, DataLogManager, Timer, Alert, Joystick, \
     XboxController
 from wpimath.filter import SlewRateLimiter
@@ -30,6 +32,7 @@ from commands.stop_auto_timer import StopAutoTimer
 from commands.pathfollowing_endpoint import PathfollowingEndpointClose
 from commands.wheel_radius_calculator import WheelRadiusCalculator
 from commands.launch import Launch
+from commands.pose_launch import PoseLaunch
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -69,6 +72,7 @@ class RobotContainer:
         # self.leds = LEDs(self.timer)
         self.leds = LEDs(self.timer)
         self.util = UtilSubsystem()
+        self.launcher = LauncherSubsystem()
 
         # Setup driver & operator controllers. -------------------------------------------------------------------------
         self.driver_controller = button.CommandXboxController(OIConstants.kDriverControllerPort)
@@ -189,7 +193,8 @@ class RobotContainer:
 
         # Prototype turn-to-target command. TELEOP ONLY.
         self.driver_controller.rightTrigger().and_(lambda: not self.test_bindings).whileTrue(
-            Launch(self.drivetrain)
+            # Launch(self.drivetrain, self.launcher)
+            PoseLaunch(self.drivetrain, self.launcher)
         ).onFalse(
             ResetCLT(self.drivetrain)
         )

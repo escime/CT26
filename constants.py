@@ -2,12 +2,15 @@
 The constants module is a convenience place for teams to hold robot-wide
 numerical or boolean constants. Don't use this for any other purpose!
 """
-from wpimath.units import inchesToMeters, degreesToRadians
+from wpimath.units import inchesToMeters, degreesToRadians, feetToMeters, lbsToKilograms, \
+    rotationsPerMinuteToRadiansPerSecond
 from phoenix6 import units
 from wpimath.geometry import Translation2d, Translation3d, Transform3d, Rotation3d
 from wpimath.kinematics import SwerveDrive4Kinematics
 from robotpy_apriltag import AprilTagFieldLayout, AprilTagField
 from photonlibpy import photonCamera, photonPoseEstimator
+from phoenix6.signals import InvertedValue
+from math import pi, cos
 
 
 class OIConstants:
@@ -48,7 +51,7 @@ class AutoConstants:
 
 class VisionConstants:
     # AprilTag Information ---------------------------------------------------------------------------------------------
-    april_tag_field_layout = AprilTagFieldLayout.loadField(AprilTagField.k2025ReefscapeWelded)
+    april_tag_field_layout = AprilTagFieldLayout.loadField(AprilTagField.k2026RebuiltAndyMark)
     default_tags = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
                     17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
     target_height = inchesToMeters(44.25)
@@ -57,6 +60,9 @@ class VisionConstants:
     neutral_zone_tags = [1, 2, 3, 4, 5, 6, 17, 18, 19, 20, 21, 22, 24, 2, 5, 27]
     red_alliance_tags = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     blue_alliance_tags = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+
+    red_hub_center = [11.915, 4.035]
+    blue_hub_center = [4.630, 4.035]
 
     tag_names = {
         "red": {
@@ -144,3 +150,49 @@ class VisionConstants:
     robot_cameras_2d = [cam1]
     robot_cameras_2d_height = robot_to_cam1.z
     robot_cameras_2d_angle = abs(robot_to_cam1.rotation().y_degrees)
+
+class LauncherConstants:
+    # Setup Values -----------------------------------------------------------------------------------------------------
+    flywheel_main_can_id = 30
+    flywheel_follower_can_id = 31
+    stator_current_limit = 120
+    supply_current_limit = 60
+    gear_ratio = 1
+    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+
+    gp_sensor_port = 1
+
+    hood_can_id = 32
+    hood_stator_current_limit = 120
+    hood_supply_current_limit = 40
+    hood_gear_ratio = 0.1
+    hood_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+
+    # Tuning values ----------------------------------------------------------------------------------------------------
+    mm_cruise_velocity = 100
+    mm_acceleration = 100
+    mm_jerk = 100
+    ks = 0.25
+    kv = 0.09
+    ka = 1.56
+    kp = 1
+    ki = 0
+    kd = 0
+
+    hood_mm_cruise_velocity = 2.5
+    hood_mm_acceleration = 1.25
+    hood_mm_jerk = 100
+    hood_kg = 0.01
+    hood_ks = 0.25
+    hood_kv = 1.08
+    hood_ka = 0.0
+    hood_kp = 1
+    hood_ki = 0
+    hood_kd = 0
+
+    # Launcher Table ---------------------------------------------------------------------------------------------------
+    # range in meters, hood angle in 0-1, shooter speed in RPM
+    launcher_table = [
+        [0, 0, 2000 / 60],
+        [15, 1, 2500 / 60]
+    ]
