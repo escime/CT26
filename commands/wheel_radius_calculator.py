@@ -4,6 +4,7 @@ from phoenix6 import swerve
 from wpilib import SmartDashboard, Timer
 from constants import AutoConstants
 from wpimath.units import degreesToRadians, rotationsToRadians, metersToInches
+from ntcore import NetworkTableInstance
 
 
 class WheelRadiusCalculator(Command):
@@ -24,6 +25,9 @@ class WheelRadiusCalculator(Command):
         self.br = 0
         self.start_angle = 0
         self.start_time = 0
+
+        self._inst = NetworkTableInstance.getDefault()
+        self._debug_table = self._inst.getTable("Debug")
 
     def initialize(self):
         self.start_time = self.timer.get()
@@ -68,10 +72,10 @@ class WheelRadiusCalculator(Command):
 
             avg_dist = (fl_dist + fr_dist + bl_dist + br_dist) / 4
 
-            SmartDashboard.putNumber("Average Rotations Traveled", avg_dist)
+            self._debug_table.putNumber("Average Rotations Traveled", avg_dist)
 
             wheel_radius = (2 * metersToInches(AutoConstants.drive_base_radius)) / ( 2 * avg_dist) * 6.746031746031747
             # Weird number above is the drive gear ratio from phoenix tuner, which is local so can't be called
 
-            SmartDashboard.putNumber("Average Wheel Radius", wheel_radius)
-            SmartDashboard.putNumber("Average Wheel Diameter", wheel_radius * 2)
+            self._debug_table.putNumber("Average Wheel Radius", wheel_radius)
+            self._debug_table.putNumber("Average Wheel Diameter", wheel_radius * 2)

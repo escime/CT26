@@ -8,10 +8,11 @@ from phoenix6.signals import MotorAlignmentValue
 from phoenix6.utils import get_current_time_seconds, is_simulation
 from phoenix6.canbus import CANBus
 
-from wpilib import SmartDashboard, DigitalInput
+from wpilib import DigitalInput
 from wpilib.simulation import FlywheelSim
 from wpimath.system.plant import DCMotor, LinearSystemId
 from wpimath.units import radiansToRotations
+from ntcore import NetworkTableInstance
 
 from math import pi, degrees
 from numpy import interp
@@ -27,6 +28,9 @@ class LauncherSubsystem(Subsystem):
         self.state = "off"
         self.auto_velocity = 1500 / 60
         self.auto_hood_position = 0
+
+        self._inst = NetworkTableInstance.getDefault()
+        self._launcher_table = self._inst.getTable("Launcher")
 
         # Flywheel Setup -----------------------------------------------------------------------------------------------
         self.flywheel = TalonFX(LauncherConstants.flywheel_main_can_id, CANBus("rio"))
@@ -194,9 +198,9 @@ class LauncherSubsystem(Subsystem):
         if is_simulation():
             self.update_sim()
 
-        SmartDashboard.putNumber("Flywheel Velocity", self.get_velocity())
-        SmartDashboard.putBoolean("Flywheel at Speed", self.get_at_target())
-        SmartDashboard.putNumber("Time Since Setpoint Activated", get_current_time_seconds() - self.setpoint_enabled_time)
-        SmartDashboard.putNumber("Flywheel Auto Target", self.auto_velocity)
-        SmartDashboard.putNumber("Hood Angle", self.hood.get_position().value_as_double) # TODO Fix hood angles /shrug_emoji
-        SmartDashboard.putNumber("Hood Auto Target", self.auto_hood_position)
+        self._launcher_table.putNumber("Flywheel Velocity", self.get_velocity())
+        self._launcher_table.putBoolean("Flywheel at Speed", self.get_at_target())
+        self._launcher_table.putNumber("Time Since Setpoint Activated", get_current_time_seconds() - self.setpoint_enabled_time)
+        self._launcher_table.putNumber("Flywheel Auto Target", self.auto_velocity)
+        self._launcher_table.putNumber("Hood Angle", self.hood.get_position().value_as_double) # TODO Fix hood angles /shrug_emoji
+        self._launcher_table.putNumber("Hood Auto Target", self.auto_hood_position)

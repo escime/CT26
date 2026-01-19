@@ -20,6 +20,7 @@ from telemetry import Telemetry
 from phoenix6 import swerve, SignalLogger
 from wpimath.geometry import Rotation2d
 from wpimath.units import rotationsToRadians
+from ntcore import NetworkTableInstance
 
 from math import pi, pow, copysign, atan2
 
@@ -49,8 +50,13 @@ class RobotContainer:
         self.timer = Timer()
         self.timer.start()
 
+        # Configure network table access.
+        self._inst = NetworkTableInstance.getDefault()
+        self._auto_table = self._inst.getTable("Auto")
+        self._debug_table = self._inst.getTable("Debug")
+
         # Configure button to enable robot logging.
-        self.logging_button = SmartDashboard.putBoolean("Logging Enabled?", False)
+        self.logging_button = self._debug_table.putBoolean("Logging Enabled?", False)
 
         # Disable automatic CTR logging
         SignalLogger.enable_auto_logging(False)
@@ -58,7 +64,7 @@ class RobotContainer:
         # Configure system logging. ------------------------------------------------------------------------------------
         self.alert_logging_enabled = Alert("Robot Logging is Enabled", Alert.AlertType.kWarning)
         if wpilib.RobotBase.isReal():
-            if SmartDashboard.getBoolean("Logging Enabled?", False) is True:
+            if self._debug_table.getBoolean("Logging Enabled?", False) is True:
                 DataLogManager.start()
                 DriverStation.startDataLog(DataLogManager.getLog(), True)
                 SignalLogger.start()
@@ -110,8 +116,8 @@ class RobotContainer:
         # Register commands for PathPlanner. ---------------------------------------------------------------------------
         self.registerCommands()
 
-        SmartDashboard.putBoolean("Misalignment Indicator Active?", False)
-        SmartDashboard.putNumber("Misalignment Angle", 0)
+        self._auto_table.putBoolean("Misalignment Indicator Active?", False)
+        self._auto_table.putNumber("Misalignment Angle", 0)
 
         # Setup for all event-trigger commands. ------------------------------------------------------------------------
         # self.configureTriggersSmartDash()
@@ -192,11 +198,17 @@ class RobotContainer:
         # )
 
         # Prototype turn-to-target command. TELEOP ONLY.
-        self.driver_controller.rightTrigger().and_(lambda: not self.test_bindings).whileTrue(
+        self.driver_controller.a().and_(lambda: not self.test_bindings).whileTrue(
             # Launch(self.drivetrain, self.launcher)
             PoseLaunch(self.drivetrain, self.launcher)
         ).onFalse(
             ResetCLT(self.drivetrain)
+        )
+
+        self.operator_controller.a().onTrue(
+            runOnce(lambda: self.launcher.set_state("standby"), self.launcher)
+        ).onFalse(
+            runOnce(lambda: self.launcher.set_state("off"), self.launcher)
         )
 
         # POV Snap mode

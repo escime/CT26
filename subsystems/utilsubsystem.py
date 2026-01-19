@@ -1,6 +1,6 @@
 from commands2 import Subsystem
 from ntcore import NetworkTableInstance
-from wpilib import PowerDistribution, SmartDashboard, DriverStation
+from wpilib import PowerDistribution, DriverStation
 
 
 class UtilSubsystem(Subsystem):

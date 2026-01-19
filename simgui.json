@@ -33,10 +33,40 @@
       },
       "/SmartDashboard/VisionSystemSim-main/Sim Field": {
         "bottom": 1914,
+        "cameras": {
+          "arrowColor": [
+            0.0,
+            255.0,
+            236.78565979003906,
+            255.0
+          ],
+          "color": [
+            0.0,
+            255.0,
+            245.89283752441406,
+            255.0
+          ],
+          "style": "Line"
+        },
         "height": 8.069275856018066,
         "left": 245,
         "right": 3942,
         "top": 118,
+        "visibleTargetPoses": {
+          "arrowColor": [
+            0.0,
+            100.1786117553711,
+            255.0,
+            255.0
+          ],
+          "color": [
+            0.0,
+            13.660722732543945,
+            255.0,
+            255.0
+          ],
+          "style": "Hidden"
+        },
         "width": 16.54119300842285,
         "window": {
           "visible": true
@@ -46,9 +76,6 @@
   },
   "NetworkTables": {
     "transitory": {
-      "PyTimer": {
-        "open": true
-      },
       "SmartDashboard": {
         "open": true
       }

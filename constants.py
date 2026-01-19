@@ -129,11 +129,11 @@ class VisionConstants:
 
     # Camera 1 Information ---------------------------------------------------------------------------------------------
     cam_1_name = "launcher"
-    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(5),
+    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(0.877729),
                                               inchesToMeters(0),
-                                              inchesToMeters(0)),
+                                              inchesToMeters(20.74341)),
                                 Rotation3d(degreesToRadians(0),
-                                           degreesToRadians(-45),
+                                           degreesToRadians(-30),
                                            degreesToRadians(0)))
 
     cam1 = photonCamera.PhotonCamera(cam_1_name)
@@ -144,9 +144,43 @@ class VisionConstants:
                                                 cam1,
                                                 robot_to_cam1))
 
+    # Camera 2 Information ---------------------------------------------------------------------------------------------
+    cam_2_name = "back_right"
+    robot_to_cam2 = Transform3d(Translation3d(inchesToMeters(-11.124557),
+                                              inchesToMeters(-10.340702),
+                                              inchesToMeters(9.208135)),
+                                Rotation3d(degreesToRadians(0),
+                                           degreesToRadians(-20),
+                                           degreesToRadians(30 + 180)))
+
+    cam2 = photonCamera.PhotonCamera(cam_2_name)
+
+    cam2_pose = (
+        photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
+                                                photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+                                                cam2,
+                                                robot_to_cam2))
+
+    # Camera 3 Information ---------------------------------------------------------------------------------------------
+    cam_3_name = "back_left"
+    robot_to_cam3 = Transform3d(Translation3d(inchesToMeters(-11.124557),
+                                              inchesToMeters(10.340702),
+                                              inchesToMeters(9.208135)),
+                                Rotation3d(degreesToRadians(0),
+                                           degreesToRadians(-20),
+                                           degreesToRadians(-30 + 180)))
+
+    cam3 = photonCamera.PhotonCamera(cam_3_name)
+
+    cam3_pose = (
+        photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
+                                                photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+                                                cam3,
+                                                robot_to_cam3))
+
     # Camera Lists -----------------------------------------------------------------------------------------------------
-    robot_cameras_3d = [cam1]
-    robot_cameras_poses_3d = [cam1_pose]
+    robot_cameras_3d = [cam1, cam2, cam3]
+    robot_cameras_poses_3d = [cam1_pose, cam2_pose, cam3_pose]
     robot_cameras_2d = [cam1]
     robot_cameras_2d_height = robot_to_cam1.z
     robot_cameras_2d_angle = abs(robot_to_cam1.rotation().y_degrees)
@@ -170,7 +204,7 @@ class LauncherConstants:
 
     # Tuning values ----------------------------------------------------------------------------------------------------
     mm_cruise_velocity = 100
-    mm_acceleration = 100
+    mm_acceleration = 30
     mm_jerk = 100
     ks = 0.25
     kv = 0.09

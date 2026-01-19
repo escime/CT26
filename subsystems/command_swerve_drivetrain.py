@@ -8,12 +8,13 @@ from pathplannerlib.config import PIDConstants, RobotConfig
 from pathplannerlib.controller import PPHolonomicDriveController
 from pathplannerlib.path import PathConstraints
 from phoenix6 import swerve, units, utils, SignalLogger
-from wpilib import DriverStation, Notifier, RobotController, SmartDashboard
+from wpilib import DriverStation, Notifier, RobotController
 from wpilib.sysid import SysIdRoutineLog
 from wpimath.geometry import Rotation2d, Pose2d, Transform3d, Translation3d, Rotation3d
 from wpimath.units import degreesToRadians, inchesToMeters, metersToInches
 from wpimath.controller import ProfiledPIDController
 from wpimath.trajectory import TrapezoidProfile
+from ntcore import NetworkTableInstance
 
 
 from robotpy_apriltag import AprilTagFieldLayout, AprilTagField
@@ -143,6 +144,11 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
         swerve.SwerveDrivetrain.__init__(self, drivetrain_constants, arg2, arg3, arg4, arg5)
 
         self.config = RobotConfig.fromGUISettings()
+
+        self._inst = NetworkTableInstance.getDefault()
+        self._vision_table = self._inst.getTable("Vision")
+        self._drive_table = self._inst.getTable("Debug")
+
 
         self._sim_notifier: Notifier | None = None
         self._last_sim_time: units.second = 0.0
@@ -303,7 +309,11 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
            camera_prop.setAvgLatency(0.01)
            camera_prop.setLatencyStdDev(0.01)
            cam1_sim = PhotonCameraSim(VisionConstants.cam1, camera_prop)
+           cam2_sim = PhotonCameraSim(VisionConstants.cam2, camera_prop)
+           cam3_sim = PhotonCameraSim(VisionConstants.cam3, camera_prop)
            self.vision_sim.addCamera(cam1_sim, VisionConstants.robot_to_cam1)
+           self.vision_sim.addCamera(cam2_sim, VisionConstants.robot_to_cam2)
+           self.vision_sim.addCamera(cam3_sim, VisionConstants.robot_to_cam3)
 
 
     def apply_request(self, request: Callable[[], swerve.requests.SwerveRequest]) -> Command:
@@ -343,8 +353,8 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
                 self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
             else:
                 self.update_2d_solution()
-                SmartDashboard.putNumber("Target Yaw", self.target_yaw)
-                SmartDashboard.putNumber("Target Range (in)", metersToInches(self.target_range))
+                self._vision_table.putNumber("Target Yaw", self.target_yaw)
+                self._vision_table.putNumber("Target Range (in)",  metersToInches(self.target_range))
 
         # If in simulation, update PhotonVision for sim.
         if utils.is_simulation():
@@ -353,10 +363,10 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
                 self.select_best_vision_pose((1.5, 1.5, 9999999999999999999))
             else:
                 self.update_2d_solution()
-                SmartDashboard.putNumber("Target Yaw", self.target_yaw)
-                SmartDashboard.putNumber("Target Range (in)", metersToInches(self.target_range))
-                SmartDashboard.putBoolean("Target in View", self.target_in_view)
-                SmartDashboard.putNumber("Target ID", self.target_id)
+                self._vision_table.putNumber("Target Yaw", self.target_yaw)
+                self._vision_table.putNumber("Target Range (in)", metersToInches(self.target_range))
+                self._vision_table.putBoolean("Target in View", self.target_in_view)
+                self._vision_table.putNumber("Target ID", self.target_id)
 
     def update_2d_solution(self) -> None:
         for i in self.photon_cam_array_2d:
@@ -421,13 +431,13 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
                         self.target_id = best_target.fiducialId
 
         if accepted_poses:
-            SmartDashboard.putBoolean("Accepted new pose?", True)
+            self._vision_table.putBoolean("Accepted new pose?", True)
             self.tag_seen = True
             for i in range(0, len(accepted_poses)):
                 self.add_vision_measurement(accepted_poses[i].toPose2d(), utils.fpga_to_current_time(accepted_targets[i].getTimestampSeconds()), stddevs)
         else:
             self.tag_seen = False
-            SmartDashboard.putBoolean("Accepted new pose?", False)
+            self._vision_table.putBoolean("Accepted new pose?", False)
 
     def set_used_tags(self, tags: str):
         """Set the used set of tags. Options are 'red' for red alliance zone, 'blue' for blue alliance zone,
