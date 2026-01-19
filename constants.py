@@ -193,6 +193,7 @@ class LauncherConstants:
     supply_current_limit = 60
     gear_ratio = 1
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+    flywheel_rps_threshold = 5
 
     gp_sensor_port = 1
 

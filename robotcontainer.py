@@ -198,7 +198,7 @@ class RobotContainer:
         # )
 
         # Prototype turn-to-target command. TELEOP ONLY.
-        self.driver_controller.a().and_(lambda: not self.test_bindings).whileTrue(
+        self.driver_controller.rightTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
             # Launch(self.drivetrain, self.launcher)
             PoseLaunch(self.drivetrain, self.launcher)
         ).onFalse(

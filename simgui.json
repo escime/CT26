@@ -76,6 +76,9 @@
   },
   "NetworkTables": {
     "transitory": {
+      "Launcher": {
+        "open": true
+      },
       "SmartDashboard": {
         "open": true
       }

@@ -69,7 +69,7 @@ class LauncherSubsystem(Subsystem):
         if not status.is_ok() or not status_2.is_ok():
             print(f"Could not apply configs, error code: {status.name}")
 
-        self.flywheel_follower.set_control(Follower(LauncherConstants.flywheel_main_can_id, MotorAlignmentValue.OPPOSED))
+        # self.flywheel_follower.set_control(Follower(LauncherConstants.flywheel_main_can_id, MotorAlignmentValue.OPPOSED))
 
         self.flywheel_sim = self.flywheel.sim_state
 
@@ -133,6 +133,7 @@ class LauncherSubsystem(Subsystem):
         self.state = state
         if state == "auto":
             self.flywheel.set_control(self.flywheel_mm.with_velocity(self.auto_velocity).with_slot(0))
+            self.flywheel_follower.set_control(self.flywheel_mm.with_velocity(self.auto_velocity).with_slot(0))
             self.hood.set_control(self.hood_mm.with_position(self.auto_hood_position).with_slot(0))
         elif state == "off":
             self.flywheel.set_control(self.flywheel_volts.with_output(0))
@@ -156,6 +157,7 @@ class LauncherSubsystem(Subsystem):
 
         self.hood.set_control(self.hood_mm.with_position(interp(distance_to_goal, distance_array, hood_angle_array)))
         self.flywheel.set_control(self.flywheel_mm.with_velocity(interp(distance_to_goal, distance_array, launcher_speed_array)))
+        self.flywheel_follower.set_control(self.flywheel_mm.with_velocity(interp(distance_to_goal, distance_array, launcher_speed_array)))
         self.auto_velocity = interp(distance_to_goal, distance_array, launcher_speed_array)
         self.auto_hood_position = interp(distance_to_goal, distance_array, hood_angle_array)
 
@@ -166,19 +168,19 @@ class LauncherSubsystem(Subsystem):
     def get_sensor_on(self) -> bool:
         return not self.gp_sensor.get()
 
-    def get_velocity(self) -> float:
-        return self.flywheel.get_velocity(True).value_as_double
+    def get_velocity(self) -> [float, float]:
+        return [self.flywheel.get_velocity(True).value_as_double, self.flywheel_follower.get_velocity(True).value_as_double]
 
     def get_at_target(self) -> bool:
         if self.state == "off":
             return True
         elif self.state == "auto":
-            if self.auto_velocity - 9 < self.get_velocity() <= self.auto_velocity + 9:
+            if self.auto_velocity - LauncherConstants.flywheel_rps_threshold < self.get_velocity()[0] <= self.auto_velocity + LauncherConstants.flywheel_rps_threshold:
                 return True
             else:
                 return False
         else:
-            if self.state_values[self.state] - 9 < self.get_velocity() <= self.state_values[self.state] + 9:
+            if self.state_values[self.state] - LauncherConstants.flywheel_rps_threshold < self.get_velocity()[0] <= self.state_values[self.state] + LauncherConstants.flywheel_rps_threshold:
                 return True
             else:
                 return False
@@ -198,7 +200,8 @@ class LauncherSubsystem(Subsystem):
         if is_simulation():
             self.update_sim()
 
-        self._launcher_table.putNumber("Flywheel Velocity", self.get_velocity())
+        self._launcher_table.putNumber("Left Flywheel Velocity", self.get_velocity()[0])
+        self._launcher_table.putNumber("Right Flywheel Velocity", self.get_velocity()[1])
         self._launcher_table.putBoolean("Flywheel at Speed", self.get_at_target())
         self._launcher_table.putNumber("Time Since Setpoint Activated", get_current_time_seconds() - self.setpoint_enabled_time)
         self._launcher_table.putNumber("Flywheel Auto Target", self.auto_velocity)
