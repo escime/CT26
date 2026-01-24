@@ -270,3 +270,19 @@ class IntakeConstants:
                     "deployed": [0, 5],
                     "outpost": [-12, 10]
                     }
+
+class HopperConstants:
+    right_indexer_can_id = 50
+    left_indexer_can_id = 51
+    stator_current_limit = 120
+    supply_current_limit = 40
+    indexer_gear_ratio = 4
+    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+
+    feeder_can_id = 52
+    feeder_gear_ratio = 1
+
+    state_values = {
+        "off": 0,
+        "on" : 12
+    }
