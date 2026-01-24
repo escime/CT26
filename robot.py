@@ -46,6 +46,8 @@ class Robot(TimedCommandRobot):
         elasticlib.select_tab("Autonomous")
         elasticlib.send_notification(self.auto_notification)
 
+        cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(True)).schedule()
+
         if self.m_autonomous_command is not None:
             self.m_autonomous_command.schedule()
 
@@ -58,6 +60,8 @@ class Robot(TimedCommandRobot):
         if self.m_autonomous_command:
             self.m_autonomous_command.cancel()
         cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.reset_clt(),
+                    self.m_robotcontainer.drivetrain).schedule()
+        cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
                     self.m_robotcontainer.drivetrain).schedule()
         elasticlib.select_tab("Teleoperated")
         elasticlib.send_notification(self.teleop_notification)

@@ -1,6 +1,8 @@
 from commands2 import Subsystem
 from ntcore import NetworkTableInstance
 from wpilib import PowerDistribution, DriverStation
+# from helpers.andymark.AM_CAN_Color_Sensor import AMCANColorSensor
+# from wpilib import Color, Color8Bit
 
 
 class UtilSubsystem(Subsystem):
@@ -18,6 +20,8 @@ class UtilSubsystem(Subsystem):
 
         self._received_game_data = False
         self._output_team_color = False
+
+        # self._color_sensor = AMCANColorSensor(60)
 
         # FORMAT: X, Y, ANGLE, LOCATION NAME
         self.scoring_sides_red = [
@@ -123,3 +127,9 @@ class UtilSubsystem(Subsystem):
                 self._table.putString("Team Color", "R")
             else:
                 self._table.putString("Team Color", "B")
+
+        # self._table.putNumber("Proximity", self._color_sensor.get_data().proximity)
+        # self._table.putValue("Color", Color(self._color_sensor.get_data().red,
+        #       self._color_sensor.get_data().green,
+        #       self._color_sensor.get_data().blue
+        #       ).hexString())

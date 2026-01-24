@@ -8,7 +8,7 @@ from pathplannerlib.config import PIDConstants, RobotConfig
 from pathplannerlib.controller import PPHolonomicDriveController
 from pathplannerlib.path import PathConstraints
 from phoenix6 import swerve, units, utils, SignalLogger
-from wpilib import DriverStation, Notifier, RobotController
+from wpilib import DriverStation, Notifier, RobotController, Alert
 from wpilib.sysid import SysIdRoutineLog
 from wpimath.geometry import Rotation2d, Pose2d, Transform3d, Translation3d, Rotation3d
 from wpimath.units import degreesToRadians, inchesToMeters, metersToInches
@@ -203,6 +203,8 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
 
         # Configure persistent alerts.
         # alert_photonvision_enabled = Alert("PhotonVision Simulation Enabled", Alert.AlertType.kWarning)
+        self._alert_3d_mode = Alert("Localization Active", Alert.AlertType.kWarning)
+        self._alert_lookahead_mode = Alert("Localization Prediction Active", Alert.AlertType.kWarning)
 
         self._translation_characterization = swerve.requests.SysIdSwerveTranslation()
         self._steer_characterization = swerve.requests.SysIdSwerveSteerGains()
@@ -284,6 +286,7 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
         self.target_range = -100000
         self.target_id = -100000
         self.target_in_view = False
+        self.auto_slow = False
 
         self.ptttc = ProfiledPIDController(0.1, 0, 0, TrapezoidProfile.Constraints(10, 2), 0.04)
         self.ptttc.reset(0)
@@ -360,13 +363,16 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
         if utils.is_simulation():
             self.vision_sim.update(self.get_pose())
             if self.mode_3d:
-                self.select_best_vision_pose((1.5, 1.5, 9999999999999999999))
+                self.select_best_vision_pose((10, 10, 9999999999999999999))
             else:
                 self.update_2d_solution()
                 self._vision_table.putNumber("Target Yaw", self.target_yaw)
                 self._vision_table.putNumber("Target Range (in)", metersToInches(self.target_range))
                 self._vision_table.putBoolean("Target in View", self.target_in_view)
                 self._vision_table.putNumber("Target ID", self.target_id)
+
+    def set_auto_slow(self, on: bool) -> None:
+        self.auto_slow = on
 
     def update_2d_solution(self) -> None:
         for i in self.photon_cam_array_2d:
@@ -459,9 +465,17 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
 
     def set_3d(self, on: bool) -> None:
         self.mode_3d = on
+        if on:
+            self._alert_3d_mode.set(True)
+        else:
+            self._alert_3d_mode.set(False)
 
     def set_lookahead(self, on: bool) -> None:
         self.lookahead_active = on
+        if on:
+            self._alert_lookahead_mode.set(True)
+        else:
+            self._alert_lookahead_mode.set(False)
 
     def vel_acc_periodic(self) -> None:
         """Calculates the instantaneous robot velocity and acceleration."""
@@ -666,6 +680,10 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             self.re_entered_clt = False
         else:
             self.target_direction = Rotation2d(self.target_direction.radians() + turn_amount * degreesToRadians(3))
+
+        if self.auto_slow:
+            x_speed = x_speed * 0.5
+            y_speed = y_speed * 0.5
 
         return (self.clt_request
                 .with_velocity_x(x_speed)

@@ -8,6 +8,7 @@ from subsystems.ledsubsystem import LEDs
 from subsystems.utilsubsystem import UtilSubsystem
 from subsystems.command_swerve_drivetrain import ResetCLT, SetRotation, SetCLTTarget
 from subsystems.launchersubsystem import LauncherSubsystem
+from subsystems.intakesubsystem import IntakeSubsystem
 
 from wpilib import SmartDashboard, SendableChooser, DriverStation, DataLogManager, Timer, Alert, Joystick, \
     XboxController
@@ -34,6 +35,9 @@ from commands.pathfollowing_endpoint import PathfollowingEndpointClose
 from commands.wheel_radius_calculator import WheelRadiusCalculator
 from commands.launch import Launch
 from commands.pose_launch import PoseLaunch
+from commands.intake import Intake
+from commands.auto_mode_launch import AutoLaunch
+from commands.auto_mode_launch_end import AutoEndLaunch
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -79,6 +83,7 @@ class RobotContainer:
         self.leds = LEDs(self.timer)
         self.util = UtilSubsystem()
         self.launcher = LauncherSubsystem()
+        self.intake = IntakeSubsystem()
 
         # Setup driver & operator controllers. -------------------------------------------------------------------------
         self.driver_controller = button.CommandXboxController(OIConstants.kDriverControllerPort)
@@ -197,7 +202,7 @@ class RobotContainer:
         #     )
         # )
 
-        # Prototype turn-to-target command. TELEOP ONLY.
+        # Launch command.
         self.driver_controller.rightTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
             # Launch(self.drivetrain, self.launcher)
             PoseLaunch(self.drivetrain, self.launcher)
@@ -205,33 +210,22 @@ class RobotContainer:
             ResetCLT(self.drivetrain)
         )
 
+        # Intake commands.
+        self.driver_controller.leftTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
+            Intake(self.intake, "hopper goes here")
+        )
+
+        # TEST COMMAND # ###############################################################################################
         self.operator_controller.a().onTrue(
             runOnce(lambda: self.launcher.set_state("standby"), self.launcher)
         ).onFalse(
             runOnce(lambda: self.launcher.set_state("off"), self.launcher)
         )
+        # TEST COMMAND # ###############################################################################################
 
         # POV Snap mode
         self.driver_controller.povUp().onTrue(
             SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(180))
-        )
-        self.driver_controller.povUpLeft().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(225))
-        )
-        self.driver_controller.povLeft().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(270))
-        )
-        self.driver_controller.povDownLeft().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(315))
-        )
-        self.driver_controller.povRight().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(90))
-        )
-        self.driver_controller.povDownRight().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(45))
-        )
-        self.driver_controller.povUpRight().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135))
         )
         self.driver_controller.povDown().onTrue(
             SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(0))
@@ -243,11 +237,6 @@ class RobotContainer:
                 runOnce(lambda: self.drivetrain.reset_odometry(), self.drivetrain).ignoringDisable(True),
                 ResetCLT(self.drivetrain).ignoringDisable(True)
             )
-        )
-
-        # Drivetrain brake mode.
-        self.driver_controller.leftTrigger().and_(lambda: not self.test_bindings).whileTrue(
-            self.drivetrain.apply_request(lambda: self._brake)
         )
 
         # Configuration for telemetry.
@@ -368,3 +357,16 @@ class RobotContainer:
         NamedCommands.registerCommand("start_timer", StartAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("stop_timer", StopAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("reset_CLT", ResetCLT(self.drivetrain))
+        NamedCommands.registerCommand("intake_on", Intake(self.intake, "hopper goes here"))
+        NamedCommands.registerCommand("3d_mode_on", runOnce(lambda: self.drivetrain.set_3d(True)))
+        NamedCommands.registerCommand("3d_mode_off", runOnce(lambda: self.drivetrain.set_3d(True)))
+        NamedCommands.registerCommand(
+            "launch",
+            SequentialCommandGroup(
+                SequentialCommandGroup(
+                    AutoLaunch(self.drivetrain, self.launcher),
+                    self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
+                ).repeatedly().withTimeout(4), # TODO change to last shot condition
+            AutoEndLaunch(self.launcher, self.drivetrain)
+            )
+        )

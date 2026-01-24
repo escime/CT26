@@ -14,10 +14,13 @@ class PoseLaunch(Command):
         self.launcher = launcher
         self.brake = swerve.requests.SwerveDriveBrake()
 
+        self.addRequirements(launcher)
+
     def initialize(self):
         self.launcher.set_state("standby")
         self.drive.set_3d(True)
         self.drive.set_lookahead(True)
+        self.drive.set_auto_slow(True)
 
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.5)))
@@ -27,6 +30,7 @@ class PoseLaunch(Command):
         self.launcher.set_state("off")
         self.drive.set_3d(False)
         self.drive.set_lookahead(False)
+        self.drive.set_auto_slow(False)
 
     # def convert_hood_angle_to_degrees(self, hood_angle: float) -> float:
     #     return 170 - ( 35 * hood_angle )

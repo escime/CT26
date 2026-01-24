@@ -125,6 +125,7 @@ class LauncherSubsystem(Subsystem):
 
         # Other Setup --------------------------------------------------------------------------------------------------
         self.gp_sensor = DigitalInput(LauncherConstants.gp_sensor_port)
+        self.last_launch_time = get_current_time_seconds()
         self.last_time = get_current_time_seconds()
         self.setpoint_enabled_time = get_current_time_seconds()
 
@@ -137,9 +138,11 @@ class LauncherSubsystem(Subsystem):
             self.hood.set_control(self.hood_mm.with_position(self.auto_hood_position).with_slot(0))
         elif state == "off":
             self.flywheel.set_control(self.flywheel_volts.with_output(0))
+            self.flywheel_follower.set_control(self.flywheel_volts.with_output(0))
             self.hood.set_control(self.hood_mm.with_position(0).with_slot(0))
         else:
             self.flywheel.set_control(self.flywheel_mm.with_velocity(self.state_values[state]).with_slot(0))
+            self.flywheel_follower.set_control(self.flywheel_mm.with_velocity(self.state_values[state]).with_slot(0))
             self.hood.set_control(self.hood_mm.with_position(self.hood_state_values[state]).with_slot(0))
 
     def set_flywheel_auto_default_velocity(self, velocity: float) -> None:
@@ -161,6 +164,20 @@ class LauncherSubsystem(Subsystem):
         self.auto_velocity = interp(distance_to_goal, distance_array, launcher_speed_array)
         self.auto_hood_position = interp(distance_to_goal, distance_array, hood_angle_array)
 
+    def get_last_launch_recorded(self):
+        return self.last_launch_time
+
+    def record_launch_time(self):
+        if self.get_sensor_on():
+            self.last_launch_time = get_current_time_seconds()
+        else:
+            pass
+
+    def get_still_launching(self):
+        if get_current_time_seconds() - self.get_last_launch_recorded() > LauncherConstants.launch_time_threshold:
+            return True
+        else:
+            return False
 
     def get_state(self) -> str:
         return self.state
@@ -200,6 +217,7 @@ class LauncherSubsystem(Subsystem):
         if is_simulation():
             self.update_sim()
 
+        self.record_launch_time()
         self._launcher_table.putNumber("Left Flywheel Velocity", self.get_velocity()[0])
         self._launcher_table.putNumber("Right Flywheel Velocity", self.get_velocity()[1])
         self._launcher_table.putBoolean("Flywheel at Speed", self.get_at_target())

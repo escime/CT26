@@ -129,20 +129,25 @@ class VisionConstants:
 
     # Camera 1 Information ---------------------------------------------------------------------------------------------
     cam_1_name = "launcher"
-    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(0.877729),
-                                              inchesToMeters(0),
-                                              inchesToMeters(20.74341)),
+    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(-8.827717),
+                                              inchesToMeters(-10.1875),
+                                              inchesToMeters(20.666455)),
                                 Rotation3d(degreesToRadians(0),
-                                           degreesToRadians(-30),
+                                           degreesToRadians(-25),
                                            degreesToRadians(0)))
 
     cam1 = photonCamera.PhotonCamera(cam_1_name)
 
+    # cam1_pose = (
+    #     photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
+    #                                             photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+    #                                             cam1,
+    #                                             robot_to_cam1))
+
     cam1_pose = (
         photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-                                                photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-                                                cam1,
-                                                robot_to_cam1))
+                                                robot_to_cam1)
+    )
 
     # Camera 2 Information ---------------------------------------------------------------------------------------------
     cam_2_name = "back_right"
@@ -155,11 +160,16 @@ class VisionConstants:
 
     cam2 = photonCamera.PhotonCamera(cam_2_name)
 
+    # cam2_pose = (
+    #     photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
+    #                                             photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+    #                                             cam2,
+    #                                             robot_to_cam2))
+
     cam2_pose = (
         photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-                                                photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-                                                cam2,
-                                                robot_to_cam2))
+                                                robot_to_cam2)
+    )
 
     # Camera 3 Information ---------------------------------------------------------------------------------------------
     cam_3_name = "back_left"
@@ -172,11 +182,16 @@ class VisionConstants:
 
     cam3 = photonCamera.PhotonCamera(cam_3_name)
 
+    # cam3_pose = (
+    #     photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
+    #                                             photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+    #                                             cam3,
+    #                                             robot_to_cam3))
+
     cam3_pose = (
         photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-                                                photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-                                                cam3,
-                                                robot_to_cam3))
+                                                robot_to_cam3)
+    )
 
     # Camera Lists -----------------------------------------------------------------------------------------------------
     robot_cameras_3d = [cam1, cam2, cam3]
@@ -196,6 +211,7 @@ class LauncherConstants:
     flywheel_rps_threshold = 5
 
     gp_sensor_port = 1
+    launch_time_threshold = 0.5
 
     hood_can_id = 32
     hood_stator_current_limit = 120
@@ -231,3 +247,26 @@ class LauncherConstants:
         [0, 0, 2000 / 60],
         [15, 1, 2500 / 60]
     ]
+
+class IntakeConstants:
+    intake_leader_can_id = 40
+    intake_follower_can_id = 41
+    stator_current_limit = 120
+    supply_current_limit = 40
+    gear_ratio = 1
+    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+
+    intake_deploy_can_id = 42
+    max_duty_cycle = 0.75
+    intake_deploy_stator_current_limit = 120
+    intake_deploy_supply_current_limit = 40
+    intake_deploy_gear_ratio = 20
+    intake_deploy_peak_forward_current = 30
+    intake_deploy_peak_reverse_current = 30
+
+    # [Intake speed, Deploy power]
+    state_values = {"stow": [0, -20],
+                    "intake": [12, 30],
+                    "deployed": [0, 5],
+                    "outpost": [-12, 10]
+                    }

@@ -76,6 +76,12 @@
   },
   "NetworkTables": {
     "transitory": {
+      "Auto": {
+        "open": true
+      },
+      "Intake": {
+        "open": true
+      },
       "Launcher": {
         "open": true
       },

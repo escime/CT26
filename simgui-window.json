@@ -23,7 +23,7 @@
     },
     "###/SmartDashboard/Auto Select": {
       "Collapsed": "0",
-      "Pos": "23,562",
+      "Pos": "23,564",
       "Size": "469,78"
     },
     "###/SmartDashboard/VisionSystemSim-main/Sim Field": {
@@ -39,12 +39,12 @@
     "###FMS": {
       "Collapsed": "0",
       "Pos": "10,1080",
-      "Size": "302,304"
+      "Size": "495,212"
     },
     "###Joysticks": {
       "Collapsed": "0",
       "Pos": "369,1135",
-      "Size": "1516,392"
+      "Size": "1516,249"
     },
     "###NetworkTables": {
       "Collapsed": "0",
