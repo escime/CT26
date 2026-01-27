@@ -4,6 +4,18 @@
       "window": {
         "visible": true
       }
+    },
+    "Other Devices": {
+      "CANrange (v6)[61]": {
+        "header": {
+          "open": true
+        }
+      },
+      "CANrange (v6)[62]": {
+        "header": {
+          "open": true
+        }
+      }
     }
   },
   "NTProvider": {
@@ -79,13 +91,19 @@
       "Auto": {
         "open": true
       },
+      "Climber": {
+        "open": true
+      },
+      "Hopper": {
+        "open": true
+      },
       "Intake": {
         "open": true
       },
-      "Launcher": {
+      "SmartDashboard": {
         "open": true
       },
-      "SmartDashboard": {
+      "Vision": {
         "open": true
       }
     }

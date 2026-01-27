@@ -1,10 +1,11 @@
 from commands2 import Command
 
 from subsystems.intakesubsystem import IntakeSubsystem
+from subsystems.hoppersubsystem import HopperSubsystem
 
 class Intake(Command):
 
-    def __init__(self, intake: IntakeSubsystem, hopper):  # TODO add hopper subsystem typecatch
+    def __init__(self, intake: IntakeSubsystem, hopper: HopperSubsystem):
         super().__init__()
 
         self._intake = intake
@@ -12,11 +13,11 @@ class Intake(Command):
 
     def initialize(self):
         self._intake.set_state("intake")
-        # TODO add hopper set state here
+        self._hopper.set_state("intaking")
 
     def isFinished(self) -> bool:
         return False
 
     def end(self, interrupted: bool):
         self._intake.set_state("deployed")
-        # TODO add hopper set state here
+        self._hopper.set_state("off")

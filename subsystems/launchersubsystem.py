@@ -23,8 +23,8 @@ class LauncherSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
         self._last_sim_time = get_current_time_seconds()
-        self.state_values = {"off": 0, "safety": 100 / 60, "standby": 2000 / 60}  # In rotations per second  # TODO move to constants
-        self.hood_state_values = {"off": 0, "safety": 0, "standby": 0}
+        self.state_values = LauncherConstants.state_values
+        self.hood_state_values = LauncherConstants.hood_state_values
         self.state = "off"
         self.auto_velocity = 1500 / 60
         self.auto_hood_position = 0
@@ -72,10 +72,17 @@ class LauncherSubsystem(Subsystem):
         # self.flywheel_follower.set_control(Follower(LauncherConstants.flywheel_main_can_id, MotorAlignmentValue.OPPOSED))
 
         self.flywheel_sim = self.flywheel.sim_state
+        self.flywheel_follower_sim = self.flywheel_follower.sim_state
 
         self.wheel_sim = FlywheelSim(
             LinearSystemId.flywheelSystem(DCMotor.krakenX60FOC(2), 0.005, LauncherConstants.gear_ratio),
-            DCMotor.krakenX60FOC(2),
+            DCMotor.krakenX60FOC(1),
+            [0.0]
+        )
+
+        self.wheel_follower_sim = FlywheelSim(
+            LinearSystemId.flywheelSystem(DCMotor.krakenX60FOC(2), 0.005, LauncherConstants.gear_ratio),
+            DCMotor.krakenX60FOC(1),
             [0.0]
         )
 
@@ -210,7 +217,10 @@ class LauncherSubsystem(Subsystem):
         dt = current_time - self.last_time
         self.last_time = current_time
         self.wheel_sim.setInput(0, self.flywheel_sim.motor_voltage)
+        self.wheel_follower_sim.setInput(0, self.flywheel_follower_sim.motor_voltage)
         self.wheel_sim.update(dt)
+        self.wheel_follower_sim.update(dt)
+        self.flywheel_follower_sim.set_rotor_velocity(radiansToRotations(self.wheel_follower_sim.getAngularVelocity() * LauncherConstants.gear_ratio))
         self.flywheel_sim.set_rotor_velocity(radiansToRotations(self.wheel_sim.getAngularVelocity() * LauncherConstants.gear_ratio))
 
     def periodic(self) -> None:
@@ -223,5 +233,5 @@ class LauncherSubsystem(Subsystem):
         self._launcher_table.putBoolean("Flywheel at Speed", self.get_at_target())
         self._launcher_table.putNumber("Time Since Setpoint Activated", get_current_time_seconds() - self.setpoint_enabled_time)
         self._launcher_table.putNumber("Flywheel Auto Target", self.auto_velocity)
-        self._launcher_table.putNumber("Hood Angle", self.hood.get_position().value_as_double) # TODO Fix hood angles /shrug_emoji
+        self._launcher_table.putNumber("Hood Angle", self.hood.get_position().value_as_double)
         self._launcher_table.putNumber("Hood Auto Target", self.auto_hood_position)

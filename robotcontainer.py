@@ -3,12 +3,15 @@ import wpilib.simulation
 from commands2 import Command, button, SequentialCommandGroup, ParallelCommandGroup, ParallelRaceGroup, sysid, \
     InterruptionBehavior, ParallelDeadlineGroup, WaitCommand, ConditionalCommand
 
+from commands.manual_launch import ManualLaunch
 from constants import OIConstants
 from subsystems.ledsubsystem import LEDs
 from subsystems.utilsubsystem import UtilSubsystem
 from subsystems.command_swerve_drivetrain import ResetCLT, SetRotation, SetCLTTarget
 from subsystems.launchersubsystem import LauncherSubsystem
 from subsystems.intakesubsystem import IntakeSubsystem
+from subsystems.hoppersubsystem import HopperSubsystem
+from subsystems.climbersubsystem import ClimberSubsystem
 
 from wpilib import SmartDashboard, SendableChooser, DriverStation, DataLogManager, Timer, Alert, Joystick, \
     XboxController
@@ -38,6 +41,9 @@ from commands.pose_launch import PoseLaunch
 from commands.intake import Intake
 from commands.auto_mode_launch import AutoLaunch
 from commands.auto_mode_launch_end import AutoEndLaunch
+from commands.auto_climb import AutoClimb
+from commands.feed import Feed
+from commands.outpost_feed import OutpostFeed
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -84,6 +90,8 @@ class RobotContainer:
         self.util = UtilSubsystem()
         self.launcher = LauncherSubsystem()
         self.intake = IntakeSubsystem()
+        self.hopper = HopperSubsystem()
+        self.climber = ClimberSubsystem()
 
         # Setup driver & operator controllers. -------------------------------------------------------------------------
         self.driver_controller = button.CommandXboxController(OIConstants.kDriverControllerPort)
@@ -187,49 +195,80 @@ class RobotContainer:
                 )
             )
 
-        # SLOW MODE, currently DISABLED
-        # self.driver_controller.rightTrigger().and_(lambda: not self.test_bindings).whileTrue(
-        #     self.drivetrain.apply_request(
-        #         lambda: (
-        #             self.drivetrain.drive_clt(
-        #                 self.drive_filter_y.calculate(
-        #                     self.driver_controller.getLeftY()) * self._max_speed * -1 * 0.2,
-        #                 self.drive_filter_x.calculate(
-        #                     self.driver_controller.getLeftX()) * self._max_speed * -1 * 0.2,
-        #                 self.driver_controller.getRightX() * -1 * 0.2
-        #             )
-        #         )
-        #     )
-        # )
-
-        # Launch command.
+        # Automatic Launch command.
         self.driver_controller.rightTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
-            # Launch(self.drivetrain, self.launcher)
-            PoseLaunch(self.drivetrain, self.launcher)
+            PoseLaunch(self.drivetrain, self.launcher, self.hopper, self.intake)
         ).onFalse(
             ResetCLT(self.drivetrain)
         )
 
-        # Intake commands.
-        self.driver_controller.leftTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
-            Intake(self.intake, "hopper goes here")
+        # Manual launch commands.
+        self.driver_controller.leftBumper().and_(lambda: not self.test_bindings).whileTrue(
+            ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "hub")
+        )
+        self.driver_controller.rightBumper().and_(lambda: not self.test_bindings).whileTrue(
+            ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "tower")
         )
 
-        # TEST COMMAND # ###############################################################################################
+        # Intake command.
+        self.driver_controller.leftTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
+            Intake(self.intake, self.hopper)
+        )
+
+        # Climber deploy.
+        self.driver_controller.povUp().and_(lambda: not self.test_bindings).onTrue(
+            SequentialCommandGroup(
+                SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(180)),
+                runOnce(lambda: self.climber.set_state("deployed"), self.climber)
+            )
+        )
+
+        # Climber climb.
+        self.driver_controller.povDown().and_(lambda: not self.test_bindings).onTrue(
+            runOnce(lambda: self.climber.set_state("climb"), self.climber)
+        )
+
+        # Stow robot for crossing the BUMP or TRENCH.
+        self.driver_controller.a().and_(lambda: not self.test_bindings).onTrue(
+            SequentialCommandGroup(
+                SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135)),
+                runOnce(lambda: self.launcher.set_state("safety"), self.launcher),
+                runOnce(lambda: self.climber.set_state("stow"), self.climber)
+            )
+        )
+
+        # Emergency intake retraction.
+        self.driver_controller.b().and_(lambda: not self.test_bindings).onTrue(
+            runOnce(lambda: self.intake.set_state("stow"), self.intake)
+        )
+
+        # Feed button (does not rotate drivetrain at all).
+        self.driver_controller.x().and_(lambda: not self.test_bindings).whileTrue(
+            Feed(self.launcher, self.hopper, self.intake)
+        )
+
+        # Outpost feed button.
+        self.driver_controller.rightStick().and_(lambda: not self.test_bindings).whileTrue(
+            OutpostFeed(self.launcher, self.hopper, self.intake)
+        )
+
+        # Auto climbing. # TODO Fix Auto Climbing
+        self.driver_controller.start().and_(lambda: not self.test_bindings).whileTrue(
+            AutoClimb(self.drivetrain, self.climber)
+        )
+
+        # TEST COMMANDS # ##############################################################################################
         self.operator_controller.a().onTrue(
             runOnce(lambda: self.launcher.set_state("standby"), self.launcher)
         ).onFalse(
             runOnce(lambda: self.launcher.set_state("off"), self.launcher)
         )
-        # TEST COMMAND # ###############################################################################################
-
-        # POV Snap mode
-        self.driver_controller.povUp().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(180))
+        self.operator_controller.b().onTrue(
+            runOnce(lambda: self.hopper.set_state("intake"), self.hopper)
+        ).onFalse(
+            runOnce(lambda: self.hopper.set_state("off"), self.hopper)
         )
-        self.driver_controller.povDown().onTrue(
-            SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(0))
-        )
+        # TEST COMMANDS # ##############################################################################################
 
         # Reset pose.
         self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
@@ -357,16 +396,16 @@ class RobotContainer:
         NamedCommands.registerCommand("start_timer", StartAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("stop_timer", StopAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("reset_CLT", ResetCLT(self.drivetrain))
-        NamedCommands.registerCommand("intake_on", Intake(self.intake, "hopper goes here"))
+        NamedCommands.registerCommand("intake_on", Intake(self.intake, self.hopper))
         NamedCommands.registerCommand("3d_mode_on", runOnce(lambda: self.drivetrain.set_3d(True)))
         NamedCommands.registerCommand("3d_mode_off", runOnce(lambda: self.drivetrain.set_3d(True)))
         NamedCommands.registerCommand(
             "launch",
             SequentialCommandGroup(
                 SequentialCommandGroup(
-                    AutoLaunch(self.drivetrain, self.launcher),
+                    AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
                 ).repeatedly().withTimeout(4), # TODO change to last shot condition
-            AutoEndLaunch(self.launcher, self.drivetrain)
+            AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper)
             )
         )

@@ -412,38 +412,69 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
 
 
     def select_best_vision_pose(self, stddevs: (float, float, float)) -> None:
-        accepted_poses = []
-        accepted_targets = []
         for i in range(0, len(self.photon_cam_array_3d)):
-            estimated_pose = self.photon_pose_array_3d[i].update()
-            best_target_yeehaw = self.photon_cam_array_3d[i].getLatestResult()
-            best_target = best_target_yeehaw.getBestTarget()
-            if best_target is not None:
-                if best_target_yeehaw.getBestTarget().fiducialId not in self.used_tags:
-                    for k in best_target_yeehaw.getTargets():
-                        if k is not None:
-                            if k.fiducialId in self.used_tags:
-                                best_target = k
-            if estimated_pose is not None:
-                estimated_pose = estimated_pose.estimatedPose
-                if best_target is not None:
-                    if (0 < estimated_pose.x < 17.658 and 0 < estimated_pose.y < 8.131 and -0.03 <= estimated_pose.z <= 0.03 and
-                       best_target.fiducialId in self.used_tags and
-                            math.sqrt(math.pow(best_target.bestCameraToTarget.x, 2) +
-                                      math.pow(best_target.bestCameraToTarget.y, 2)) < 4):
-                        accepted_poses.append(estimated_pose)
-                        accepted_targets.append(best_target_yeehaw)
-                        self.target_yaw = best_target.getYaw()
-                        self.target_id = best_target.fiducialId
+            result = self.photon_cam_array_3d[i].getLatestResult()
+            if result.getTargets() is not None:
+                pose_estimate = self.photon_pose_array_3d[i].estimateCoprocMultiTagPose(result)
+                if pose_estimate is not None:
+                    pose_result = pose_estimate.estimatedPose
+                    if pose_result is not None:
+                        if 0 < pose_result.x < 17.658 and 0 < pose_result.y < 8.131 and -0.03 <= pose_result.z <= 0.03:
+                            self._vision_table.putBoolean("Accepted New Pose?", True)
+                            self.tag_seen = True
 
-        if accepted_poses:
-            self._vision_table.putBoolean("Accepted new pose?", True)
-            self.tag_seen = True
-            for i in range(0, len(accepted_poses)):
-                self.add_vision_measurement(accepted_poses[i].toPose2d(), utils.fpga_to_current_time(accepted_targets[i].getTimestampSeconds()), stddevs)
-        else:
-            self.tag_seen = False
-            self._vision_table.putBoolean("Accepted new pose?", False)
+                            self.add_vision_measurement(pose_result.toPose2d(),
+                                                        utils.fpga_to_current_time(pose_estimate.timestampSeconds),
+                                                        stddevs)
+
+                        else:
+                            self._vision_table.putBoolean("Accepted New Pose?", False)
+                            self.tag_seen = False
+                    else:
+                        self._vision_table.putBoolean("Accepted New Pose?", False)
+                        self.tag_seen = False
+                else:
+                    self._vision_table.putBoolean("Accepted New Pose?", False)
+                    self.tag_seen = False
+            else:
+                self._vision_table.putBoolean("Accepted New Pose?", False)
+                self.tag_seen = False
+
+
+
+    # def select_best_vision_pose(self, stddevs: (float, float, float)) -> None:
+    #     accepted_poses = []
+    #     accepted_targets = []
+    #     for i in range(0, len(self.photon_cam_array_3d)):
+    #         estimated_pose = self.photon_pose_array_3d[i].update()
+    #         best_target_yeehaw = self.photon_cam_array_3d[i].getLatestResult()
+    #         best_target = best_target_yeehaw.getBestTarget()
+    #         if best_target is not None:
+    #             if best_target_yeehaw.getBestTarget().fiducialId not in self.used_tags:
+    #                 for k in best_target_yeehaw.getTargets():
+    #                     if k is not None:
+    #                         if k.fiducialId in self.used_tags:
+    #                             best_target = k
+    #         if estimated_pose is not None:
+    #             estimated_pose = estimated_pose.estimatedPose
+    #             if best_target is not None:
+    #                 if (0 < estimated_pose.x < 17.658 and 0 < estimated_pose.y < 8.131 and -0.03 <= estimated_pose.z <= 0.03 and
+    #                    best_target.fiducialId in self.used_tags and
+    #                         math.sqrt(math.pow(best_target.bestCameraToTarget.x, 2) +
+    #                                   math.pow(best_target.bestCameraToTarget.y, 2)) < 4):
+    #                     accepted_poses.append(estimated_pose)
+    #                     accepted_targets.append(best_target_yeehaw)
+    #                     self.target_yaw = best_target.getYaw()
+    #                     self.target_id = best_target.fiducialId
+    #
+    #     if accepted_poses:
+    #         self._vision_table.putBoolean("Accepted new pose?", True)
+    #         self.tag_seen = True
+    #         for i in range(0, len(accepted_poses)):
+    #             self.add_vision_measurement(accepted_poses[i].toPose2d(), utils.fpga_to_current_time(accepted_targets[i].getTimestampSeconds()), stddevs)
+    #     else:
+    #         self.tag_seen = False
+    #         self._vision_table.putBoolean("Accepted new pose?", False)
 
     def set_used_tags(self, tags: str):
         """Set the used set of tags. Options are 'red' for red alliance zone, 'blue' for blue alliance zone,

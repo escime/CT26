@@ -1,24 +1,16 @@
 from commands2 import Command
 
-from subsystems.command_swerve_drivetrain import CommandSwerveDrivetrain
 from subsystems.hoppersubsystem import HopperSubsystem
 from subsystems.launchersubsystem import LauncherSubsystem
 from subsystems.intakesubsystem import IntakeSubsystem
-from phoenix6 import swerve
-from wpimath.geometry import Rotation2d
-from math import pi
 
-class PoseLaunch(Command):
-    """This is an advanced launch command. It implements shoot on the move using 3D pose tracking."""
-    def __init__(self, drivetrain: CommandSwerveDrivetrain, launcher: LauncherSubsystem, hopper: HopperSubsystem,
+class Feed(Command):
+    def __init__(self, launcher: LauncherSubsystem, hopper: HopperSubsystem,
                  intake: IntakeSubsystem):
         super().__init__()
-        self.drive = drivetrain
         self.launcher = launcher
         self.hopper = hopper
         self.intake = intake
-
-        self.brake = swerve.requests.SwerveDriveBrake()
 
         self._launching_active = False
 
@@ -27,18 +19,11 @@ class PoseLaunch(Command):
         self.addRequirements(intake)
 
     def initialize(self):
-        self.launcher.set_state("standby")
+        self.launcher.set_state("feed")
         self.intake.set_state("deployed")
-        self.drive.set_3d(True)
-        self.drive.set_lookahead(True)
-        self.drive.set_auto_slow(True)
-
         self._launching_active = False
 
     def execute(self):
-        self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.5)))
-        self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_to_goal(0.5))
-
         if self.launcher.get_at_target() and not self._launching_active:
             self.hopper.set_state("launching")
             self.intake.set_state("launching")
@@ -49,6 +34,3 @@ class PoseLaunch(Command):
         self.launcher.set_state("off")
         self.hopper.set_state("off")
         self.intake.set_state("stow")
-        self.drive.set_3d(False)
-        self.drive.set_lookahead(False)
-        self.drive.set_auto_slow(False)

@@ -16,7 +16,7 @@ from ntcore import NetworkTableInstance
 from math import pi
 from constants import HopperConstants
 
-class HopperSubsystem(Subsytem):
+class HopperSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
         self._last_sim_time = get_current_time_seconds()
@@ -40,7 +40,7 @@ class HopperSubsystem(Subsytem):
         indexer_configs.current_limits.stator_current_limit_enable = True
         indexer_configs.current_limits.supply_current_limit = HopperConstants.supply_current_limit
         indexer_configs.current_limits.supply_current_limit_enable = True
-        indexer_configs.feedback.sensor_to_mechanism_ratio = HopperConstants.gear_ratio
+        indexer_configs.feedback.sensor_to_mechanism_ratio = HopperConstants.indexer_gear_ratio
         indexer_configs.motor_output.inverted = HopperConstants.direction
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
@@ -57,32 +57,44 @@ class HopperSubsystem(Subsytem):
 
         #Feeder Setup --------------------------------------------------------------------------------------------------
         self.feeder = TalonFX(HopperConstants.feeder_can_id, CANBus("rio"))
+
+        feeder_configs = TalonFXConfiguration()
+
+        feeder_configs.current_limits.stator_current_limit = HopperConstants.stator_current_limit
+        feeder_configs.current_limits.stator_current_limit_enable = True
+        feeder_configs.current_limits.supply_current_limit = HopperConstants.supply_current_limit
+        feeder_configs.current_limits.supply_current_limit_enable = True
+        feeder_configs.motor_output.inverted = HopperConstants.feeder_direction
+
         self.feeder_volts = VoltageOut(0, True)
+
+        status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        for _ in range(0, 5):
+            status = self.feeder.configurator.apply(feeder_configs)
+            if status.is_ok():
+                break
+        if not status.is_ok():
+            print(f"Could not apply configs, error code: {status.name}")
 
         # Other Setup --------------------------------------------------------------------------------------------------
         self.last_time = get_current_time_seconds()
 
     def set_state(self, state: str) -> None:
         self.state = state
-        self.left_indexer.set_control(self.hopper_volts.with_output(self.state_values[state]))
-        self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state]))
-        self.feeder.ser_control(self.feeder_volts.with_output(self.state_values[state]))
+        self.left_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][1]))
+        self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][0]))
+        self.feeder.set_control(self.feeder_volts.with_output(self.state_values[state][2]))
 
     def get_state(self) -> str:
         return self.state
 
-    def update_sim(self):
-        current_time = get_current_time_seconds()
-        dt = current_time - self.last_time
-        self.last_time = current_time
+    # def update_sim(self):
+    #     current_time = get_current_time_seconds()
+    #     dt = current_time - self.last_time
+    #     self.last_time = current_time
 
     def periodic(self) -> None:
-        if is_simulation():
-            self.update_sim()
+        # if is_simulation():
+        #     self.update_sim()
 
-        if 0 < self.intake_leader.get_motor_voltage().value_as_double < 0:
-            self._hopper_table.putBoolean("Feeder Rollers On?", True)
-        else:
-            self._hopper_table.putBoolean("Feeder Rollers On?", False)
-
-
+        self._hopper_table.putString("Hopper State", self.get_state())

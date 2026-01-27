@@ -201,6 +201,21 @@ class VisionConstants:
     robot_cameras_2d_angle = abs(robot_to_cam1.rotation().y_degrees)
 
 class LauncherConstants:
+    state_values = {"off": 0, # In rotations per second
+                    "safety": 100 / 60,
+                    "standby": 2000 / 60,
+                    "outpost": 500 / 60,
+                    "tower": 3000 / 60,
+                    "hub": 2000 / 60,
+                    "feed": 3000 / 60}
+    hood_state_values = {"off": 0,
+                         "safety": 0,
+                         "standby": 0,
+                         "outpost": 1,
+                         "tower": 0.75,
+                         "hub": 0,
+                         "feed": 1}
+
     # Setup Values -----------------------------------------------------------------------------------------------------
     flywheel_main_can_id = 30
     flywheel_follower_can_id = 31
@@ -268,7 +283,8 @@ class IntakeConstants:
     state_values = {"stow": [0, -20],
                     "intake": [12, 30],
                     "deployed": [0, 5],
-                    "outpost": [-12, 10]
+                    "outpost": [-12, 10],
+                    "launching": [6, -10]
                     }
 
 class HopperConstants:
@@ -279,10 +295,36 @@ class HopperConstants:
     indexer_gear_ratio = 4
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
 
+    feeder_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
     feeder_can_id = 52
     feeder_gear_ratio = 1
 
+    # spindexer right, spindexer left, feeder
     state_values = {
-        "off": 0,
-        "on" : 12
+        "off": [0, 0, 0],
+        "launching" : [12, 12, 12],
+        "intaking": [-3, -3, 0]
+    }
+
+
+class ClimberConstants:
+    climber_can_id = 60
+    ranger_front_can_id = 61
+    ranger_back_can_id = 62
+
+    threshold_range = inchesToMeters(20)
+
+    stator_current_limit = 120
+    supply_current_limit = 40
+    gear_ratio = 1
+    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+
+    deployed_position = 1
+    stowed_position = 0
+    climbed_position = 0.5
+
+    state_values = {
+        "stow": -12,
+        "deployed": 12,
+        "climb": -12
     }
