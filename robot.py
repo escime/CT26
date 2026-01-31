@@ -65,7 +65,7 @@ class Robot(TimedCommandRobot):
                     self.m_robotcontainer.drivetrain).schedule()
         elasticlib.select_tab("Teleoperated")
         elasticlib.send_notification(self.teleop_notification)
-        self.m_robotcontainer.leds.set_state("default")
+        # self.m_robotcontainer.leds.set_state("default")
 
     def teleopPeriodic(self) -> None:
         """Nothing relevant here yet, everything's covered by the master scheduler."""

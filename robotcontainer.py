@@ -6,6 +6,7 @@ from commands2 import Command, button, SequentialCommandGroup, ParallelCommandGr
 from commands.manual_launch import ManualLaunch
 from constants import OIConstants
 from subsystems.ledsubsystem import LEDs
+from subsystems.ledsubsystem3 import LEDSubsystem
 from subsystems.utilsubsystem import UtilSubsystem
 from subsystems.command_swerve_drivetrain import ResetCLT, SetRotation, SetCLTTarget
 from subsystems.launchersubsystem import LauncherSubsystem
@@ -44,6 +45,7 @@ from commands.auto_mode_launch_end import AutoEndLaunch
 from commands.auto_climb import AutoClimb
 from commands.feed import Feed
 from commands.outpost_feed import OutpostFeed
+from commands.jam_clear import JamClear
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -85,8 +87,8 @@ class RobotContainer:
             SignalLogger.stop()
 
         # Startup subsystems. ------------------------------------------------------------------------------------------
+        self.leds = LEDSubsystem()
         # self.leds = LEDs(self.timer)
-        self.leds = LEDs(self.timer)
         self.util = UtilSubsystem()
         self.launcher = LauncherSubsystem()
         self.intake = IntakeSubsystem()
@@ -181,6 +183,8 @@ class RobotContainer:
         #     )
         # ))
 
+        # DRIVER COMMANDS # ############################################################################################
+        # Drive in Closed-Loop Turning Mode.
         self.drivetrain.setDefaultCommand(
                 self.drivetrain.apply_request(
                     lambda: (
@@ -197,9 +201,15 @@ class RobotContainer:
 
         # Automatic Launch command.
         self.driver_controller.rightTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
-            PoseLaunch(self.drivetrain, self.launcher, self.hopper, self.intake)
+            ParallelCommandGroup(
+                PoseLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, self.util),
+                runOnce(lambda: self.leds.set_state("yellow_chaser"), self.leds)
+            )
         ).onFalse(
-            ResetCLT(self.drivetrain)
+            SequentialCommandGroup(
+                ResetCLT(self.drivetrain),
+                runOnce(lambda: self.leds.set_state("default"), self.leds)
+            )
         )
 
         # Manual launch commands.
@@ -212,14 +222,20 @@ class RobotContainer:
 
         # Intake command.
         self.driver_controller.leftTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
-            Intake(self.intake, self.hopper)
+            ParallelCommandGroup(
+                Intake(self.intake, self.hopper),
+                runOnce(lambda: self.leds.set_state("purple_flashing"), self.leds)
+            )
+        ).onFalse(
+            runOnce(lambda: self.leds.set_state("default"), self.leds)
         )
 
         # Climber deploy.
         self.driver_controller.povUp().and_(lambda: not self.test_bindings).onTrue(
             SequentialCommandGroup(
                 SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(180)),
-                runOnce(lambda: self.climber.set_state("deployed"), self.climber)
+                runOnce(lambda: self.climber.set_state("deployed"), self.climber),
+                runOnce(lambda: self.leds.set_state("rainbow_chaser"), self.leds)
             )
         )
 
@@ -233,7 +249,8 @@ class RobotContainer:
             SequentialCommandGroup(
                 SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135)),
                 runOnce(lambda: self.launcher.set_state("safety"), self.launcher),
-                runOnce(lambda: self.climber.set_state("stow"), self.climber)
+                runOnce(lambda: self.climber.set_state("stow"), self.climber),
+                runOnce(lambda: self.leds.set_state("default"), self.leds)
             )
         )
 
@@ -249,7 +266,22 @@ class RobotContainer:
 
         # Outpost feed button.
         self.driver_controller.rightStick().and_(lambda: not self.test_bindings).whileTrue(
-            OutpostFeed(self.launcher, self.hopper, self.intake)
+            ParallelCommandGroup(
+                OutpostFeed(self.launcher, self.hopper, self.intake),
+                runOnce(lambda: self.leds.set_state("white_flashing"), self.leds)
+            )
+        ).onFalse(
+            runOnce(lambda: self.leds.set_state("default"), self.leds)
+        )
+
+        # Auto jam clear.
+        self.driver_controller.back().and_(lambda: not self.test_bindings).whileTrue(
+            JamClear(self.hopper, self.intake)
+        )
+
+        # Alliance win notifier light # TODO Test on the robot since it's not possible to simulate
+        button.Trigger(lambda: self.util.get_game_data_received()).onTrue(
+            runOnce(lambda: self.leds.set_state("yellow_" + self.util.get_alliance_winner() + "_chaser"), self.leds)
         )
 
         # Auto climbing. # TODO Fix Auto Climbing
@@ -257,17 +289,28 @@ class RobotContainer:
             AutoClimb(self.drivetrain, self.climber)
         )
 
-        # TEST COMMANDS # ##############################################################################################
+        # OPERATOR COMMANDS # ##########################################################################################
         self.operator_controller.a().onTrue(
             runOnce(lambda: self.launcher.set_state("standby"), self.launcher)
         ).onFalse(
             runOnce(lambda: self.launcher.set_state("off"), self.launcher)
         )
         self.operator_controller.b().onTrue(
-            runOnce(lambda: self.hopper.set_state("intake"), self.hopper)
+            runOnce(lambda: self.hopper.set_state("launching"), self.hopper)
         ).onFalse(
             runOnce(lambda: self.hopper.set_state("off"), self.hopper)
         )
+        self.operator_controller.x().onTrue(
+            runOnce(lambda: self.leds.set_state("rainbow_chaser"), self.leds)
+        ).onFalse(
+            runOnce(lambda: self.leds.set_state("default"), self.leds)
+        )
+        self.operator_controller.y().onTrue(
+            runOnce(lambda: self.leds.set_state("unused_5"), self.leds)
+        ).onFalse(
+            runOnce(lambda: self.leds.set_state("default"), self.leds)
+        )
+
         # TEST COMMANDS # ##############################################################################################
 
         # Reset pose.
@@ -328,6 +371,14 @@ class RobotContainer:
          .whileTrue(self.drivetrain.sys_id_steer_dynamic(sysid.SysIdRoutine.Direction.kForward)))
         (self.driver_controller.x().and_(lambda: self.test_bindings).and_(self.driver_controller.leftBumper())
          .whileTrue(self.drivetrain.sys_id_steer_dynamic(sysid.SysIdRoutine.Direction.kReverse)))
+        (self.driver_controller.y().and_(lambda: self.test_bindings).and_(self.driver_controller.leftTrigger())
+         .whileTrue(self.launcher.sys_id_quasistatic_leader(sysid.SysIdRoutine.Direction.kForward)))
+        (self.driver_controller.b().and_(lambda: self.test_bindings).and_(self.driver_controller.leftTrigger())
+         .whileTrue(self.launcher.sys_id_quasistatic_leader(sysid.SysIdRoutine.Direction.kReverse)))
+        (self.driver_controller.a().and_(lambda: self.test_bindings).and_(self.driver_controller.leftTrigger())
+         .whileTrue(self.launcher.sys_id_dynamic_leader(sysid.SysIdRoutine.Direction.kForward)))
+        (self.driver_controller.x().and_(lambda: self.test_bindings).and_(self.driver_controller.leftTrigger())
+         .whileTrue(self.launcher.sys_id_dynamic_leader(sysid.SysIdRoutine.Direction.kReverse)))
 
     def enable_test_bindings(self, enabled: bool) -> None:
         self.test_bindings = enabled
@@ -344,40 +395,40 @@ class RobotContainer:
             return joystick_input
 
     def registerCommands(self):
-        NamedCommands.registerCommand("rainbow_leds", runOnce(lambda: self.leds.set_state("rainbow"),
-                                                              self.leds))
-        NamedCommands.registerCommand("flash_green",
-                                      SequentialCommandGroup(
-                                          runOnce(lambda: self.leds.set_flash_color_color([255, 0, 0]),
-                                                  self.leds),
-                                          runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-                                          runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        NamedCommands.registerCommand("flash_red",
-                                      SequentialCommandGroup(
-                                          runOnce(lambda: self.leds.set_flash_color_color([0, 255, 0]),
-                                                  self.leds),
-                                          runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-                                          runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        NamedCommands.registerCommand("flash_blue",
-                                      SequentialCommandGroup(
-                                          runOnce(lambda: self.leds.set_flash_color_color([0, 0, 255]),
-                                                  self.leds),
-                                          runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-                                          runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        NamedCommands.registerCommand("flash_purple",
-                                      SequentialCommandGroup(
-                                          runOnce(lambda: self.leds.set_flash_color_color([50, 149, 168]),
-                                                  self.leds),
-                                          runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-                                          runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        NamedCommands.registerCommand("flash_yellow",
-                                      SequentialCommandGroup(
-                                          runOnce(lambda: self.leds.set_flash_color_color([255, 255, 0]),
-                                                  self.leds),
-                                          runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-                                          runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        NamedCommands.registerCommand("default_leds", runOnce(lambda: self.leds.set_state("default"),
-                                                              self.leds))
+        # NamedCommands.registerCommand("rainbow_leds", runOnce(lambda: self.leds.set_state("rainbow"),
+        #                                                       self.leds))
+        # NamedCommands.registerCommand("flash_green",
+        #                               SequentialCommandGroup(
+        #                                   runOnce(lambda: self.leds.set_flash_color_color([255, 0, 0]),
+        #                                           self.leds),
+        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
+        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
+        # NamedCommands.registerCommand("flash_red",
+        #                               SequentialCommandGroup(
+        #                                   runOnce(lambda: self.leds.set_flash_color_color([0, 255, 0]),
+        #                                           self.leds),
+        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
+        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
+        # NamedCommands.registerCommand("flash_blue",
+        #                               SequentialCommandGroup(
+        #                                   runOnce(lambda: self.leds.set_flash_color_color([0, 0, 255]),
+        #                                           self.leds),
+        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
+        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
+        # NamedCommands.registerCommand("flash_purple",
+        #                               SequentialCommandGroup(
+        #                                   runOnce(lambda: self.leds.set_flash_color_color([50, 149, 168]),
+        #                                           self.leds),
+        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
+        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
+        # NamedCommands.registerCommand("flash_yellow",
+        #                               SequentialCommandGroup(
+        #                                   runOnce(lambda: self.leds.set_flash_color_color([255, 255, 0]),
+        #                                           self.leds),
+        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
+        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
+        # NamedCommands.registerCommand("default_leds", runOnce(lambda: self.leds.set_state("default"),
+        #                                                       self.leds))
         NamedCommands.registerCommand("baseline", Baseline(self.drivetrain, self.timer))
         NamedCommands.registerCommand("check_drivetrain", CheckDrivetrain(self.drivetrain, self.timer))
         NamedCommands.registerCommand("override_heading_goal",
@@ -396,9 +447,12 @@ class RobotContainer:
         NamedCommands.registerCommand("start_timer", StartAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("stop_timer", StopAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("reset_CLT", ResetCLT(self.drivetrain))
-        NamedCommands.registerCommand("intake_on", Intake(self.intake, self.hopper))
+        NamedCommands.registerCommand("intake_on", Intake(self.intake, self.hopper).withTimeout(0.01))
         NamedCommands.registerCommand("3d_mode_on", runOnce(lambda: self.drivetrain.set_3d(True)))
         NamedCommands.registerCommand("3d_mode_off", runOnce(lambda: self.drivetrain.set_3d(True)))
+        NamedCommands.registerCommand("climb", runOnce(lambda: self.climber.set_state("climb"), self.climber))
+        NamedCommands.registerCommand("climb_deploy", runOnce(lambda: self.climber.set_state("deployed"), self.climber))
+        NamedCommands.registerCommand("standby_flywheel", runOnce(lambda: self.launcher.set_state("standby"), self.launcher))
         NamedCommands.registerCommand(
             "launch",
             SequentialCommandGroup(

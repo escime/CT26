@@ -1,7 +1,7 @@
 from commands2 import Subsystem
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, TorqueCurrentFOC
+from phoenix6.controls import VoltageOut, TorqueCurrentFOC, VelocityVoltage
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
 from phoenix6.signals import MotorAlignmentValue
@@ -66,7 +66,12 @@ class HopperSubsystem(Subsystem):
         feeder_configs.current_limits.supply_current_limit_enable = True
         feeder_configs.motor_output.inverted = HopperConstants.feeder_direction
 
-        self.feeder_volts = VoltageOut(0, True)
+        feeder_pid_configs = feeder_configs.slot0
+        feeder_pid_configs.k_p = HopperConstants.kp
+        feeder_pid_configs.k_i = HopperConstants.ki
+        feeder_pid_configs.k_d = HopperConstants.kd
+
+        self.feeder_vel = VelocityVoltage(0)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
@@ -83,7 +88,7 @@ class HopperSubsystem(Subsystem):
         self.state = state
         self.left_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][1]))
         self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][0]))
-        self.feeder.set_control(self.feeder_volts.with_output(self.state_values[state][2]))
+        self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
 
     def get_state(self) -> str:
         return self.state

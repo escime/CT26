@@ -10,7 +10,6 @@ from wpimath.kinematics import SwerveDrive4Kinematics
 from robotpy_apriltag import AprilTagFieldLayout, AprilTagField
 from photonlibpy import photonCamera, photonPoseEstimator
 from phoenix6.signals import InvertedValue
-from math import pi, cos
 
 
 class OIConstants:
@@ -19,20 +18,20 @@ class OIConstants:
 
 
 class LEDConstants:
-    port = 5
+    port = 0
     strip_length = 25
 
 
 class AutoConstants:
     # Copy these values from TunerConstants.
-    _front_left_x_pos: units.meter = inchesToMeters(9.625)
-    _front_left_y_pos: units.meter = inchesToMeters(9.625)
-    _front_right_x_pos: units.meter = inchesToMeters(9.625)
-    _front_right_y_pos: units.meter = inchesToMeters(-9.625)
-    _back_left_x_pos: units.meter = inchesToMeters(-9.625)
-    _back_left_y_pos: units.meter = inchesToMeters(9.625)
-    _back_right_x_pos: units.meter = inchesToMeters(-9.625)
-    _back_right_y_pos: units.meter = inchesToMeters(-9.625)
+    _front_left_x_pos: units.meter = inchesToMeters(10.625)
+    _front_left_y_pos: units.meter = inchesToMeters(10.625)
+    _front_right_x_pos: units.meter = inchesToMeters(10.625)
+    _front_right_y_pos: units.meter = inchesToMeters(-10.625)
+    _back_left_x_pos: units.meter = inchesToMeters(-10.625)
+    _back_left_y_pos: units.meter = inchesToMeters(10.625)
+    _back_right_x_pos: units.meter = inchesToMeters(-10.625)
+    _back_right_y_pos: units.meter = inchesToMeters(-10.625)
 
     # Math for auto based on copied units from Tuner.
     _front_left_translation = Translation2d(_front_left_x_pos, _front_left_y_pos)
@@ -43,7 +42,7 @@ class AutoConstants:
                                         _back_right_translation)
 
     drive_base_radius = Translation2d(_front_left_x_pos, _front_left_y_pos).norm()
-    speed_at_12_volts: units.meters_per_second = 4.73
+    speed_at_12_volts: units.meters_per_second = 4.73  # TODO test imperically
 
     # PID Constants for PathPlanner
     x_pid = [5, 0, 0]
@@ -231,17 +230,17 @@ class LauncherConstants:
     hood_can_id = 32
     hood_stator_current_limit = 120
     hood_supply_current_limit = 40
-    hood_gear_ratio = 0.1
+    hood_gear_ratio = (330 * 24) / (15 * 12)
     hood_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
 
     # Tuning values ----------------------------------------------------------------------------------------------------
-    mm_cruise_velocity = 100
-    mm_acceleration = 30
+    mm_cruise_velocity = 30
+    mm_acceleration = 20
     mm_jerk = 100
     ks = 0.25
     kv = 0.09
     ka = 1.56
-    kp = 1
+    kp = 10
     ki = 0
     kd = 0
 
@@ -260,7 +259,7 @@ class LauncherConstants:
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
         [0, 0, 2000 / 60],
-        [15, 1, 2500 / 60]
+        [15, 1, 4000 / 60]
     ]
 
 class IntakeConstants:
@@ -284,7 +283,8 @@ class IntakeConstants:
                     "intake": [12, 30],
                     "deployed": [0, 5],
                     "outpost": [-12, 10],
-                    "launching": [6, -10]
+                    "launching": [6, -10],
+                    "jam_clear": [-12, 0]
                     }
 
 class HopperConstants:
@@ -299,11 +299,16 @@ class HopperConstants:
     feeder_can_id = 52
     feeder_gear_ratio = 1
 
-    # spindexer right, spindexer left, feeder
+    kp = 1
+    ki = 0
+    kd = 0
+
+    # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
     state_values = {
         "off": [0, 0, 0],
-        "launching" : [12, 12, 12],
-        "intaking": [-3, -3, 0]
+        "launching" : [12, 12, 3000 / 60],
+        "intaking": [-3, -3, 0],
+        "jam_clear": [-8, -8, -1000 / 60]
     }
 
 
@@ -311,6 +316,7 @@ class ClimberConstants:
     climber_can_id = 60
     ranger_front_can_id = 61
     ranger_back_can_id = 62
+    servo_port = 1
 
     threshold_range = inchesToMeters(20)
 
@@ -323,8 +329,9 @@ class ClimberConstants:
     stowed_position = 0
     climbed_position = 0.5
 
+    # voltage, position
     state_values = {
-        "stow": -12,
-        "deployed": 12,
-        "climb": -12
+        "stow": [-12, 0],
+        "deployed": [12, 0],
+        "climb": [-12, 1]
     }

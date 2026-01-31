@@ -23,6 +23,29 @@ class UtilSubsystem(Subsystem):
 
         # self._color_sensor = AMCANColorSensor(60)
 
+        self._hub_activity = {
+            "red_winner_red_alliance": [
+                [(2 * 60) + 20 + 3, (2 * 60) + 10 + 2],
+                [(1 * 60) + 45 + 3, (1 * 60) + 20 + 2],
+                [55 + 3, 0 - 5]
+            ],
+            "blue_winner_red_alliance": [
+                [(2 * 60) + 20 + 3, (1 * 60) + 45 + 2],
+                [(1 * 60) + 20 + 3, 55 + 2],
+                [30 + 3, 0 - 5]
+            ],
+            "red_winner_blue_alliance": [
+                [(2 * 60) + 20 + 3, (1 * 60) + 45 + 2],
+                [(1 * 60) + 20 + 3, 55 + 2],
+                [30 + 3, 0 - 5]
+            ],
+            "blue_winner_blue_alliance": [
+                [(2 * 60) + 20 + 3, (2 * 60) + 10 + 2],
+                [(1 * 60) + 45 + 3, (1 * 60) + 20 + 2],
+                [55 + 3, 0 - 5]
+            ],
+        }
+
         # FORMAT: X, Y, ANGLE, LOCATION NAME
         self.scoring_sides_red = [
             [13.766, 4.031, [
@@ -114,19 +137,57 @@ class UtilSubsystem(Subsystem):
     def toggle_channel(self, on: bool) -> None:
         self.pdh.setSwitchableChannel(on)
 
+    def get_game_data_received(self) -> bool:
+        return self._received_game_data
+
+    def get_alliance_winner(self) -> str:
+        if self._table.getString("Auto Winner", "N") == "R":
+            return "red"
+        else:
+            return "blue"
+
+    def get_hub_active(self) -> bool:
+        if not self._output_team_color or not self._received_game_data:
+            return True
+        else:
+            hub_active = False
+            if self._table.getString("Auto Winner", "N") == "R":
+                if self._table.getString("Team Color", "B") == "R":
+                    for x in self._hub_activity["red_winner_red_alliance"]:
+                        if x[1] <= DriverStation.getMatchTime() <= x[0]:
+                            hub_active = True
+                else:
+                    for x in self._hub_activity["red_winner_blue_alliance"]:
+                        if x[1] <= DriverStation.getMatchTime() <= x[0]:
+                            hub_active = True
+            else:
+                if self._table.getString("Team Color", "B") == "R":
+                    for x in self._hub_activity["blue_winner_red_alliance"]:
+                        if x[1] <= DriverStation.getMatchTime() <= x[0]:
+                            hub_active = True
+                else:
+                    for x in self._hub_activity["blue_winner_blue_alliance"]:
+                        if x[1] <= DriverStation.getMatchTime() <= x[0]:
+                            hub_active = True
+            return hub_active
+
+
     def periodic(self) -> None:
         self._table.putNumber("Match Timer", DriverStation.getMatchTime())
-        if DriverStation.isTeleop() and not self._received_game_data:
-            _fms_game_data = str(DriverStation.getGameSpecificMessage())
-            if _fms_game_data == "B" or _fms_game_data == "R":
-                self._received_game_data = True
-                self._table.putString("Auto Winner", _fms_game_data)
-        if DriverStation.isDSAttached() and not self._output_team_color:
-            self._output_team_color = True
-            if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
-                self._table.putString("Team Color", "R")
-            else:
-                self._table.putString("Team Color", "B")
+        self._table.putBoolean("Active Shift?", self.get_hub_active())
+        if not self._received_game_data:
+            if DriverStation.isTeleop():
+                _fms_game_data = str(DriverStation.getGameSpecificMessage())
+                if _fms_game_data == "B" or _fms_game_data == "R":
+                    self._received_game_data = True
+                    self._table.putString("Auto Winner", _fms_game_data)
+        if not self._output_team_color:
+            if DriverStation.isDSAttached():
+                self._output_team_color = True
+                if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+                    self._table.putString("Team Color", "R")
+                else:
+                    self._table.putString("Team Color", "B")
 
         # self._table.putNumber("Proximity", self._color_sensor.get_data().proximity)
         # self._table.putValue("Color", Color(self._color_sensor.get_data().red,

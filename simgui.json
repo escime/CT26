@@ -16,6 +16,11 @@
           "open": true
         }
       }
+    },
+    "PWM Outputs": {
+      "window": {
+        "visible": true
+      }
     }
   },
   "NTProvider": {
@@ -98,6 +103,12 @@
         "open": true
       },
       "Intake": {
+        "open": true
+      },
+      "Launcher": {
+        "open": true
+      },
+      "PyTimer": {
         "open": true
       },
       "SmartDashboard": {

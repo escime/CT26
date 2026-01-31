@@ -16,21 +16,19 @@ from wpimath.controller import ProfiledPIDController
 from wpimath.trajectory import TrapezoidProfile
 from ntcore import NetworkTableInstance
 
+from generated.tuner_constants import TunerSwerveDrivetrain
 
-from robotpy_apriltag import AprilTagFieldLayout, AprilTagField
-from photonlibpy import photonCamera, photonPoseEstimator
 if utils.is_simulation():
    from photonlibpy.simulation import VisionSystemSim, SimCameraProperties, PhotonCameraSim
-# from wpiutil import Sendable, SendableBuilder
 
 
-class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
+class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
     """
     Class that extends the Phoenix 6 SwerveDrivetrain class and implements
     Subsystem so it can easily be used in command-based projects.
     """
 
-    _SIM_LOOP_PERIOD: units.second = 0.005
+    _SIM_LOOP_PERIOD: units.second = 0.004
 
     _BLUE_ALLIANCE_PERSPECTIVE_ROTATION = Rotation2d.fromDegrees(0)
     """Blue alliance sees forward as 0 degrees (toward red alliance wall)"""
@@ -141,7 +139,7 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             arg5=None,
     ):
         Subsystem.__init__(self)
-        swerve.SwerveDrivetrain.__init__(self, drivetrain_constants, arg2, arg3, arg4, arg5)
+        TunerSwerveDrivetrain.__init__(self, drivetrain_constants, arg2, arg3, arg4, arg5)
 
         self.config = RobotConfig.fromGUISettings()
 
@@ -191,9 +189,9 @@ class CommandSwerveDrivetrain(Subsystem, swerve.SwerveDrivetrain):
             .with_drive_request_type(swerve.SwerveModule.DriveRequestType.VELOCITY)
             .with_desaturate_wheel_speeds(True)
         )
-        self.clt_request.heading_controller.setPID(5, 0, 0)
+        self.clt_request.heading_controller.setPID(5, 0.001, 0)
         self.clt_request.heading_controller.enableContinuousInput(0, -2 * math.pi)
-        self.clt_request.heading_controller.setTolerance(0.1)
+        self.clt_request.heading_controller.setTolerance(1)
         self.re_entered_clt = True
         self.target_direction = Rotation2d(0)
 

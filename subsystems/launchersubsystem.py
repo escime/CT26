@@ -1,4 +1,5 @@
-from commands2 import Subsystem
+from commands2 import Subsystem, sysid, Command
+from phoenix6 import SignalLogger
 
 from phoenix6.hardware import TalonFX
 from phoenix6.controls import VoltageOut, MotionMagicVelocityVoltage, Follower, MotionMagicVoltage
@@ -13,6 +14,7 @@ from wpilib.simulation import FlywheelSim
 from wpimath.system.plant import DCMotor, LinearSystemId
 from wpimath.units import radiansToRotations
 from ntcore import NetworkTableInstance
+from wpilib.sysid import SysIdRoutineLog
 
 from math import pi, degrees
 from numpy import interp
@@ -136,6 +138,37 @@ class LauncherSubsystem(Subsystem):
         self.last_time = get_current_time_seconds()
         self.setpoint_enabled_time = get_current_time_seconds()
 
+        # SYSID Setup --------------------------------------------------------------------------------------------------
+        self.sys_id_control = VoltageOut(0)
+
+        self._sysid_routine_leader = sysid.SysIdRoutine(
+            sysid.SysIdRoutine.Config(
+                stepVoltage=4.0,
+                recordState=lambda state: SignalLogger.write_string(
+                    "state", SysIdRoutineLog.stateEnumToString(state)
+                ),
+            ),
+            sysid.SysIdRoutine.Mechanism(
+                lambda volts: self.flywheel.set_control(self.sys_id_control.with_output(volts)),
+                lambda log: None,
+                self
+            )
+        )
+        self._sysid_routine_follower = sysid.SysIdRoutine(
+            sysid.SysIdRoutine.Config(
+                stepVoltage=4.0,
+                recordState=lambda state: SignalLogger.write_string(
+                    "state", SysIdRoutineLog.stateEnumToString(state)
+                ),
+            ),
+            sysid.SysIdRoutine.Mechanism(
+                lambda volts: self.flywheel_follower.set_control(self.sys_id_control.with_output(volts)),
+                lambda log: None,
+                self
+            )
+        )
+        self.setName("Launcher")
+
     def set_state(self, state: str) -> None:
         self.setpoint_enabled_time = get_current_time_seconds()
         self.state = state
@@ -211,6 +244,18 @@ class LauncherSubsystem(Subsystem):
 
     def set_voltage_direct(self, output: float):
         self.flywheel.set_control(self.flywheel_volts.with_output(output))
+
+    def sys_id_quasistatic_leader(self, direction: sysid.SysIdRoutine.Direction) -> Command:
+        return self._sysid_routine_leader.quasistatic(direction)
+
+    def sys_id_dynamic_leader(self, direction: sysid.SysIdRoutine.Direction) -> Command:
+        return self._sysid_routine_leader.dynamic(direction)
+
+    def sys_id_quasistatic_follower(self, direction: sysid.SysIdRoutine.Direction) -> Command:
+        return self._sysid_routine_follower.quasistatic(direction)
+
+    def sys_id_dynamic_follower(self, direction: sysid.SysIdRoutine.Direction) -> Command:
+        return self._sysid_routine_follower.dynamic(direction)
 
     def update_sim(self):
         current_time = get_current_time_seconds()
