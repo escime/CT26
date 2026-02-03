@@ -172,9 +172,26 @@ class UtilSubsystem(Subsystem):
             return hub_active
 
 
+    def get_shift_time_remaining(self) -> int:
+        current_time = DriverStation.getMatchTime()
+        if 130 < current_time <= 140:
+            return current_time - 130
+        elif 105 < current_time <= 130:
+            return current_time - 105
+        elif 80 < current_time <= 105:
+            return current_time - 80
+        elif 55 < current_time <= 80:
+            return current_time - 55
+        elif 30 < current_time <= 55:
+            return current_time - 30
+        else:
+            return current_time
+
+
     def periodic(self) -> None:
         self._table.putNumber("Match Timer", DriverStation.getMatchTime())
         self._table.putBoolean("Active Shift?", self.get_hub_active())
+        self._table.putNumber("Time Remaining in Shift", self.get_shift_time_remaining())
         if not self._received_game_data:
             if DriverStation.isTeleop():
                 _fms_game_data = str(DriverStation.getGameSpecificMessage())

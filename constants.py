@@ -210,10 +210,10 @@ class LauncherConstants:
     hood_state_values = {"off": 0,
                          "safety": 0,
                          "standby": 0,
-                         "outpost": 1,
-                         "tower": 0.75,
+                         "outpost": 0.2,
+                         "tower": 0.1,
                          "hub": 0,
-                         "feed": 1}
+                         "feed": 0.2}
 
     # Setup Values -----------------------------------------------------------------------------------------------------
     flywheel_main_can_id = 30
