@@ -8,24 +8,21 @@ class LEDSubsystem(Subsystem):
         super().__init__()
 
         self.state_constants = {
-            "default": 0,
-            "purple_flashing": 1005,
-            "rainbow_chaser" : 1105,
-            "yellow_chaser": 1205,
-            "yellow_red_chaser": 1305,
-            "yellow_blue_chaser": 1405,
-            "white_flashing": 1500,
-            "unused_1": 1595,
-            "unused_2": 1695,
-            "unused_3": 1795,
-            "unused_4": 1895,
-            "unused_5": 1995,
+            "default": 1100,
+            "purple_flashing": 1200,
+            "rainbow_chaser" : 1300,
+            "yellow_chaser": 1400,
+            "yellow_red_chaser": 1500,
+            "yellow_blue_chaser": 1600,
+            "white_flashing": 1700,
+            "unused_1": 1800,
+            "unused_2": 1900,
         }
-
         self.pwm = PWM(LEDConstants.port)
 
         self.state = "default"
         self.last_state = "default"
+
         self.pwm.setPulseTime(self.state_constants[self.state])
 
     def set_state(self, target_state: str) -> None:
@@ -39,5 +36,3 @@ class LEDSubsystem(Subsystem):
         if self.last_state != self.state:
             self.pwm.setPulseTime(self.state_constants[self.state])
             self.last_state = self.state
-
-        # SmartDashboard.putNumber("PWM Pulse Time", self.pwm.getPulseTime())

@@ -279,9 +279,10 @@ class RobotContainer:
             JamClear(self.hopper, self.intake)
         )
 
-        # Alliance win notifier light # TODO Test on the robot since it's not possible to simulate
-        button.Trigger(lambda: self.util.get_game_data_received()).onTrue(
-            runOnce(lambda: self.leds.set_state("yellow_" + self.util.get_alliance_winner() + "_chaser"), self.leds)
+        # Alliance win notifier light
+        button.Trigger(lambda: self.util.get_game_data_received() and DriverStation.isTeleopEnabled()).onTrue(
+            runOnce(lambda: self.leds.set_state("yellow_" + self.util.get_alliance_winner() + "_chaser"),
+                    self.leds)
         )
 
         # Auto climbing. # TODO Fix Auto Climbing
