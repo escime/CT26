@@ -15,6 +15,7 @@ from wpimath.units import degreesToRadians, inchesToMeters, metersToInches
 from wpimath.controller import ProfiledPIDController
 from wpimath.trajectory import TrapezoidProfile
 from ntcore import NetworkTableInstance
+from numpy import interp
 
 from generated.tuner_constants import TunerSwerveDrivetrain
 
@@ -627,14 +628,14 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         """Provides the overridden heading in the event the override has been toggled. Returns None if override is
         disabled, which is the default."""
         if self.pathplanner_rotation_overridden == "goal":
-            return Rotation2d.fromDegrees(self.get_goal_alignment_heading())
-        elif self.pathplanner_rotation_overridden == "gp":
-            return Rotation2d.fromDegrees(self.get_gp_alignment_heading())
+            return Rotation2d.fromDegrees(self.get_goal_alignment_heading(0.5))
+        # elif self.pathplanner_rotation_overridden == "gp":
+        #     return Rotation2d.fromDegrees(self.get_gp_alignment_heading())
         else:
             return None
 
-    def get_gp_alignment_heading(self) -> float:
-        return self.get_pose().rotation().degrees() + self.tx
+    # def get_gp_alignment_heading(self) -> float:
+    #     return self.get_pose().rotation().degrees() + self.tx
 
     def get_goal_alignment_heading(self, time_compensation: float) -> float:
         """Returns the required target heading to point at a goal."""
@@ -671,6 +672,42 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         else:
             return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_hub_center[0], 2) +
                              math.pow(adjusted_pose.y - VisionConstants.blue_hub_center[1], 2))
+
+    def get_auto_lookahead_range_with_tof(self, time_compensation: float) -> float:
+        """This function is intended to be a "second order" use of the range to goal function that additionally
+        integrates measured Time-of-Flight."""
+        red = False
+        current_pose = self.get_pose()
+        adjusted_pose = Pose2d(current_pose.x + self.vx_new * time_compensation,
+                               current_pose.y + self.vy_new * time_compensation,
+                               current_pose.rotation() + Rotation2d(self.omega_new * time_compensation))
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            ract = math.sqrt(math.pow(adjusted_pose.x - VisionConstants.red_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.red_hub_center[1], 2))
+            red = True
+        else:
+            ract = math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.blue_hub_center[1], 2))
+        adjusted_pose = Pose2d(current_pose.x +
+                               self.vx_new * (time_compensation + interp(ract,
+                                                                         VisionConstants.range_tof_table,
+                                                                         VisionConstants.time_tof_table)),
+                               current_pose.y +
+                               self.vy_new * (time_compensation + interp(ract,
+                                                                         VisionConstants.range_tof_table,
+                                                                         VisionConstants.time_tof_table)),
+                               current_pose.rotation() +
+                               Rotation2d(self.omega_new * (time_compensation + interp(ract,
+                                                                                       VisionConstants.range_tof_table,
+                                                                                       VisionConstants.time_tof_table))))
+        if red:
+            return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.red_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.red_hub_center[1], 2))
+        else:
+            return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.blue_hub_center[1], 2))
+
+
 
     def pathfind_to_pose(self, target: [float, float, float]):
         """Command for pathfinding between current pose and a target pose in teleoperated."""

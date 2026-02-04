@@ -7,6 +7,7 @@ from subsystems.intakesubsystem import IntakeSubsystem
 from subsystems.utilsubsystem import UtilSubsystem
 from phoenix6 import swerve
 from wpimath.geometry import Rotation2d
+from wpilib import DriverStation
 
 class PoseLaunch(Command):
     """This is an advanced launch command. It implements shoot on the move using 3D pose tracking."""
@@ -22,6 +23,7 @@ class PoseLaunch(Command):
         self.brake = swerve.requests.SwerveDriveBrake()
 
         self._launching_active = False
+        self.adder = 0
 
         self.addRequirements(launcher)
         self.addRequirements(hopper)
@@ -37,11 +39,15 @@ class PoseLaunch(Command):
 
         self._launching_active = False
 
+        self.adder = 0
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            self.adder = 180
+
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.5)))
-        self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_to_goal(0.5))
+        self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_with_tof(0.5))
 
-        if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active():
+        if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active() and self.get_clt_on_target():
             self.hopper.set_state("launching")
             self.intake.set_state("launching")
             self._launching_active = True
@@ -61,3 +67,9 @@ class PoseLaunch(Command):
         self.drive.set_3d(False)
         self.drive.set_lookahead(False)
         self.drive.set_auto_slow(False)
+
+    def get_clt_on_target(self) -> bool:
+        if self.drive.target_direction.degrees() - 2 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 2:
+            return True
+        else:
+            return False

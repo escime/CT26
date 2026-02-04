@@ -42,7 +42,7 @@ class AutoConstants:
                                         _back_right_translation)
 
     drive_base_radius = Translation2d(_front_left_x_pos, _front_left_y_pos).norm()
-    speed_at_12_volts: units.meters_per_second = 4.73  # TODO test imperically
+    speed_at_12_volts: units.meters_per_second = 5.12
 
     # PID Constants for PathPlanner
     x_pid = [5, 0, 0]
@@ -62,6 +62,9 @@ class VisionConstants:
 
     red_hub_center = [11.915, 4.035]
     blue_hub_center = [4.630, 4.035]
+
+    range_tof_table = [0, 100] # meters
+    time_tof_table = [0, 50] # seconds
 
     tag_names = {
         "red": {
@@ -259,10 +262,19 @@ class LauncherConstants:
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
         [0, 0, 2000 / 60],
-        [15, 1, 4000 / 60]
+        [15, 0.2, 4000 / 60]
     ]
 
 class IntakeConstants:
+    # [Intake speed, Deploy power]
+    state_values = {"stow": [0, -60],
+                    "intake": [12, 60],
+                    "deployed": [0, 10],
+                    "outpost": [-12, 10],
+                    "launching": [6, -45],
+                    "jam_clear": [-12, 0]
+                    }
+
     intake_leader_can_id = 40
     intake_follower_can_id = 41
     stator_current_limit = 120
@@ -275,19 +287,18 @@ class IntakeConstants:
     intake_deploy_stator_current_limit = 120
     intake_deploy_supply_current_limit = 40
     intake_deploy_gear_ratio = 20
-    intake_deploy_peak_forward_current = 30
-    intake_deploy_peak_reverse_current = 30
-
-    # [Intake speed, Deploy power]
-    state_values = {"stow": [0, -20],
-                    "intake": [12, 30],
-                    "deployed": [0, 5],
-                    "outpost": [-12, 10],
-                    "launching": [6, -10],
-                    "jam_clear": [-12, 0]
-                    }
+    intake_deploy_peak_forward_current = 60
+    intake_deploy_peak_reverse_current = -60
 
 class HopperConstants:
+    # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
+    state_values = {
+        "off": [0, 0, 0],
+        "launching": [12, 12, 3000 / 60],
+        "intaking": [-3, -3, 0],
+        "jam_clear": [-8, -8, -1000 / 60]
+    }
+
     right_indexer_can_id = 50
     left_indexer_can_id = 51
     stator_current_limit = 120
@@ -303,16 +314,15 @@ class HopperConstants:
     ki = 0
     kd = 0
 
-    # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
-    state_values = {
-        "off": [0, 0, 0],
-        "launching" : [12, 12, 3000 / 60],
-        "intaking": [-3, -3, 0],
-        "jam_clear": [-8, -8, -1000 / 60]
-    }
-
 
 class ClimberConstants:
+    # voltage, position
+    state_values = {
+        "stow": [-12, 0],
+        "deployed": [12, 0],
+        "climb": [-12, 1]
+    }
+
     climber_can_id = 60
     ranger_front_can_id = 61
     ranger_back_can_id = 62
@@ -328,10 +338,3 @@ class ClimberConstants:
     deployed_position = 1
     stowed_position = 0
     climbed_position = 0.5
-
-    # voltage, position
-    state_values = {
-        "stow": [-12, 0],
-        "deployed": [12, 0],
-        "climb": [-12, 1]
-    }

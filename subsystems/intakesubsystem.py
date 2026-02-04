@@ -29,7 +29,7 @@ class IntakeSubsystem(Subsystem):
 
         # Intake Setup -----------------------------------------------------------------------------------------------
         self.intake_leader = TalonFX(IntakeConstants.intake_leader_can_id, CANBus("rio"))
-        self.intake_follower = TalonFX(IntakeConstants.intake_follower_can_id, CANBus("rio"))
+        # self.intake_follower = TalonFX(IntakeConstants.intake_follower_can_id, CANBus("rio"))
 
         self.intake_volts = VoltageOut(0, True)
 
@@ -43,27 +43,30 @@ class IntakeSubsystem(Subsystem):
         intake_configs.motor_output.inverted = IntakeConstants.direction
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
-        status_2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        # status_2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
             status = self.intake_leader.configurator.apply(intake_configs)
-            status_2 = self.intake_follower.configurator.apply(intake_configs)
-            if status.is_ok() and status_2.is_ok():
+            # status_2 = self.intake_follower.configurator.apply(intake_configs)
+            # if status.is_ok() and status_2.is_ok():
+            if status.is_ok():
                 break
-        if not status.is_ok() or not status_2.is_ok():
+        # if not status.is_ok() or not status_2.is_ok():
+        if not status.is_ok():
             print(f"Could not apply configs, error code: {status.name}")
 
-        self.intake_follower.set_control(Follower(IntakeConstants.intake_leader_can_id, MotorAlignmentValue.OPPOSED))
+        # self.intake_follower.set_control(Follower(IntakeConstants.intake_leader_can_id, MotorAlignmentValue.OPPOSED))
 
         # Intake Deploy Setup ------------------------------------------------------------------------------------------
         self.intake_deploy = TalonFX(IntakeConstants.intake_deploy_can_id, CANBus("rio"))
         intake_deploy_config = TalonFXConfiguration()
         self.intake_deploy_tfoc = TorqueCurrentFOC(0,
                                                    IntakeConstants.max_duty_cycle,
-                                                   1,
+                                                   2,
                                                    True
                                                    )
 
-        intake_deploy_config.motor_output.neutral_mode = intake_deploy_config.motor_output.neutral_mode.BRAKE
+        intake_deploy_config.motor_output.neutral_mode = intake_deploy_config.motor_output.neutral_mode.COAST
+        intake_deploy_config.motor_output.inverted = intake_deploy_config.motor_output.inverted.COUNTER_CLOCKWISE_POSITIVE
 
         intake_deploy_config.current_limits.supply_current_limit = IntakeConstants.intake_deploy_stator_current_limit
         intake_deploy_config.current_limits.supply_current_limit_enable = True
@@ -72,8 +75,9 @@ class IntakeSubsystem(Subsystem):
         intake_deploy_config.feedback.sensor_to_mechanism_ratio = IntakeConstants.intake_deploy_gear_ratio
 
         intake_deploy_torque_config = intake_deploy_config.torque_current
-        intake_deploy_torque_config.with_peak_forward_torque_current(IntakeConstants.intake_deploy_peak_forward_current)
-        intake_deploy_torque_config.with_peak_reverse_torque_current(IntakeConstants.intake_deploy_peak_reverse_current)
+        # intake_deploy_torque_config.with_peak_forward_torque_current(IntakeConstants.intake_deploy_peak_forward_current)
+        # intake_deploy_torque_config.with_peak_reverse_torque_current(IntakeConstants.intake_deploy_peak_reverse_current)
+        intake_deploy_torque_config.with_torque_neutral_deadband(2)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
@@ -104,7 +108,7 @@ class IntakeSubsystem(Subsystem):
     def set_state(self, state: str) -> None:
         self.state = state
         self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
-        self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][0]))
+        self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][1]))
 
     def get_state(self) -> str:
         return self.state
@@ -123,6 +127,8 @@ class IntakeSubsystem(Subsystem):
             self.update_sim()
 
         self._intake_table.putNumber("Intake Position", self.intake_deploy.get_position().value_as_double)
+        self._intake_table.putString("Intake State", self.state)
+        self._intake_table.putNumber("Intake Voltage", self.intake_deploy.get_motor_voltage(True).value_as_double)
 
         if 0 < self.intake_leader.get_motor_voltage().value_as_double < 0:
             self._intake_table.putBoolean("Intake Rollers On?", True)
