@@ -328,7 +328,8 @@ class ClimberConstants:
     ranger_back_can_id = 62
     servo_port = 1
 
-    threshold_range = inchesToMeters(20)
+    threshold_range_short = inchesToMeters(20)
+    threshold_range_long = 3
 
     stator_current_limit = 120
     supply_current_limit = 40

@@ -40,8 +40,8 @@ class AutoClimb(Command):
         self._climber.set_state("deployed")
 
     def execute(self):
-        if (self._climber.get_range_front() >= ClimberConstants.threshold_range
-                and self._climber.get_range_back() >= ClimberConstants.threshold_range):
+        print(self._climber.get_range_front())
+        if self._climber.get_range_front() >= ClimberConstants.threshold_range_short + 0.01:
             if self._blue_alliance:
                 x_output = 0.1
                 direction = 180
@@ -53,9 +53,21 @@ class AutoClimb(Command):
                                        .with_velocity_x(x_output * TunerConstants.speed_at_12_volts)
                                        .with_velocity_y(0)
                                        .with_target_direction(Rotation2d.fromDegrees(direction))).schedule())
+        elif self._climber.get_range_front() < ClimberConstants.threshold_range_short - 0.01:
+            if self._blue_alliance:
+                x_output = -0.1
+                direction = 180
+            else:
+                x_output = 0.1
+                direction = 0
+
+            (self._drive.apply_request(lambda: self.drive_request
+                                       .with_velocity_x(x_output * TunerConstants.speed_at_12_volts)
+                                       .with_velocity_y(0)
+                                       .with_target_direction(Rotation2d.fromDegrees(direction))).schedule())
 
         else:
-            if self._climber.get_range_back() >= inchesToMeters(5):
+            if self._climber.get_range_back() < ClimberConstants.threshold_range_long:
                 if self._blue_alliance:
                     y_output = -0.1
                     direction = 180

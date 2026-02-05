@@ -306,9 +306,20 @@ class RobotContainer:
                     self.leds)
         )
 
-        # Auto climbing. # TODO Fix Auto Climbing
+        # Auto climbing.
         self.driver_controller.start().and_(lambda: not self.test_bindings).whileTrue(
-            AutoClimb(self.drivetrain, self.climber)
+            SequentialCommandGroup(
+                AutoClimb(self.drivetrain, self.climber),
+                ResetCLT(self.drivetrain)
+            )
+        )
+
+        # Reset pose.
+        self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
+            SequentialCommandGroup(
+                runOnce(lambda: self.drivetrain.reset_odometry(), self.drivetrain).ignoringDisable(True),
+                ResetCLT(self.drivetrain).ignoringDisable(True)
+            )
         )
 
         # OPERATOR COMMANDS # ##########################################################################################
@@ -321,15 +332,6 @@ class RobotContainer:
             runOnce(lambda: self.hopper.set_state("launching"), self.hopper)
         ).onFalse(
             runOnce(lambda: self.hopper.set_state("off"), self.hopper)
-        )
-        # TEST COMMANDS # ##############################################################################################
-
-        # Reset pose.
-        self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
-            SequentialCommandGroup(
-                runOnce(lambda: self.drivetrain.reset_odometry(), self.drivetrain).ignoringDisable(True),
-                ResetCLT(self.drivetrain).ignoringDisable(True)
-            )
         )
 
         # Configuration for telemetry.
