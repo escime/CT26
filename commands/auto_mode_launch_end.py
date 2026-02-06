@@ -7,23 +7,20 @@ from subsystems.hoppersubsystem import HopperSubsystem
 
 class AutoEndLaunch(Command):
 
-    def __init__(self, launcher: LauncherSubsystem, drive: CommandSwerveDrivetrain, intake: IntakeSubsystem,
+    def __init__(self, launcher: LauncherSubsystem, drive: CommandSwerveDrivetrain,
                  hopper: HopperSubsystem):
         super().__init__()
         self.launcher = launcher
         self.drive = drive
         self.hopper = hopper
-        self.intake = intake
 
         self.addRequirements(launcher)
         self.addRequirements(hopper)
-        self.addRequirements(intake)
 
     def initialize(self):
         self.launcher.set_state("off")
         self.drive.set_3d(True)
         self.drive.set_lookahead(False)
-        self.intake.set_state("stow")
         self.hopper.set_state("off")
 
     def isFinished(self) -> bool:

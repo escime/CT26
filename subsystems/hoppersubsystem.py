@@ -4,7 +4,7 @@ from phoenix6.hardware import TalonFX
 from phoenix6.controls import VoltageOut, TorqueCurrentFOC, VelocityVoltage
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
-from phoenix6.signals import MotorAlignmentValue
+from phoenix6.signals import MotorAlignmentValue, NeutralModeValue
 from phoenix6.utils import get_current_time_seconds, is_simulation
 from phoenix6.canbus import CANBus
 
@@ -42,12 +42,22 @@ class HopperSubsystem(Subsystem):
         indexer_configs.current_limits.supply_current_limit_enable = True
         indexer_configs.feedback.sensor_to_mechanism_ratio = HopperConstants.indexer_gear_ratio
         indexer_configs.motor_output.inverted = HopperConstants.direction
+        indexer_configs.motor_output.neutral_mode = NeutralModeValue.COAST
+
+        indexer_configs_2 = TalonFXConfiguration()
+        indexer_configs_2.current_limits.stator_current_limit = HopperConstants.stator_current_limit
+        indexer_configs_2.current_limits.stator_current_limit_enable = True
+        indexer_configs_2.current_limits.supply_current_limit = HopperConstants.supply_current_limit
+        indexer_configs_2.current_limits.supply_current_limit_enable = True
+        indexer_configs_2.feedback.sensor_to_mechanism_ratio = HopperConstants.indexer_gear_ratio
+        indexer_configs_2.motor_output.inverted = HopperConstants.direction_2
+        indexer_configs_2.motor_output.neutral_mode = NeutralModeValue.COAST
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         status_2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
             status = self.left_indexer.configurator.apply(indexer_configs)
-            status_2 = self.right_indexer.configurator.apply(indexer_configs)
+            status_2 = self.right_indexer.configurator.apply(indexer_configs_2)
             if status.is_ok() and status_2.is_ok():
                 break
         if not status.is_ok() or not status_2.is_ok():

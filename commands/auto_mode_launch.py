@@ -13,25 +13,21 @@ from wpimath.geometry import Rotation2d
 class AutoLaunch(Command):
     """This is a basic Launch command. Planned to be supplanted by a more advanced launch command that incorporates
     pose information."""
-    def __init__(self, drivetrain: CommandSwerveDrivetrain, launcher: LauncherSubsystem, hopper: HopperSubsystem,
-                 intake: IntakeSubsystem):
+    def __init__(self, drivetrain: CommandSwerveDrivetrain, launcher: LauncherSubsystem, hopper: HopperSubsystem):
         super().__init__()
         self.drive = drivetrain
         self.launcher = launcher
         self.hopper = hopper
-        self.intake = intake
 
         self.brake = swerve.requests.SwerveDriveBrake()
 
         self.addRequirements(launcher)
         self.addRequirements(hopper)
-        self.addRequirements(intake)
 
     def initialize(self):
         self.drive.set_3d(True)
         self.drive.set_lookahead(True)
         self.launcher.set_state("standby")
-        self.intake.set_state("deployed")
 
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.5)))
@@ -41,8 +37,6 @@ class AutoLaunch(Command):
                                     .with_velocity_y(0))
         if self.launcher.get_at_target():
             self.hopper.set_state("launching")
-            self.intake.set_state("launching")
-
 
     def isFinished(self) -> bool:
         return True

@@ -12,12 +12,12 @@ from wpilib import DriverStation
 class PoseLaunch(Command):
     """This is an advanced launch command. It implements shoot on the move using 3D pose tracking."""
     def __init__(self, drivetrain: CommandSwerveDrivetrain, launcher: LauncherSubsystem, hopper: HopperSubsystem,
-                 intake: IntakeSubsystem, util: UtilSubsystem):
+                 util: UtilSubsystem):
         super().__init__()
         self.drive = drivetrain
         self.launcher = launcher
         self.hopper = hopper
-        self.intake = intake
+
         self.util = util
 
         self.brake = swerve.requests.SwerveDriveBrake()
@@ -27,12 +27,10 @@ class PoseLaunch(Command):
 
         self.addRequirements(launcher)
         self.addRequirements(hopper)
-        self.addRequirements(intake)
         self.addRequirements(util)
 
     def initialize(self):
         self.launcher.set_state("standby")
-        self.intake.set_state("deployed")
         self.drive.set_3d(True)
         self.drive.set_lookahead(True)
         self.drive.set_auto_slow(True)
@@ -49,11 +47,9 @@ class PoseLaunch(Command):
 
         if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active() and self.get_clt_on_target():
             self.hopper.set_state("launching")
-            self.intake.set_state("launching")
             self._launching_active = True
         elif self._launching_active and not self.util.get_hub_active():
             self.hopper.set_state("off")
-            self.intake.set_state("deployed")
             self._launching_active = False
         elif self._launching_active and self.util.get_hub_active():
             pass
@@ -63,7 +59,6 @@ class PoseLaunch(Command):
     def end(self, interrupted: bool):
         self.launcher.set_state("off")
         self.hopper.set_state("off")
-        self.intake.set_state("stow")
         self.drive.set_3d(False)
         self.drive.set_lookahead(False)
         self.drive.set_auto_slow(False)

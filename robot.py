@@ -63,8 +63,8 @@ class Robot(TimedCommandRobot):
                     self.m_robotcontainer.drivetrain).schedule()
         cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
                     self.m_robotcontainer.drivetrain).schedule()
-        elasticlib.select_tab("Teleoperated")
-        elasticlib.send_notification(self.teleop_notification)
+        # elasticlib.select_tab("Teleoperated")
+        # elasticlib.send_notification(self.teleop_notification)
         # self.m_robotcontainer.leds.set_state("default")
 
     def teleopPeriodic(self) -> None:

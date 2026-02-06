@@ -89,12 +89,9 @@ class RobotContainer:
 
         # Startup subsystems. ------------------------------------------------------------------------------------------
         self.leds = LEDSubsystem()
-        # self.leds = LEDs(self.timer)
         self.util = UtilSubsystem()
         self.launcher = LauncherSubsystem()
-        self.intake = IntakeSubsystem()
         self.hopper = HopperSubsystem()
-        self.climber = ClimberSubsystem()
 
         # Setup driver & operator controllers. -------------------------------------------------------------------------
         self.driver_controller = button.CommandXboxController(OIConstants.kDriverControllerPort)
@@ -148,42 +145,6 @@ class RobotContainer:
         self.drive_filter_y = SlewRateLimiter(3, -3, 0)
 
     def configure_triggers(self) -> None:
-        # NON CLT DRIVING
-        # self.drivetrain.setDefaultCommand(  # Drivetrain will execute this command periodically
-        #     self.drivetrain.apply_request(
-        #         lambda: (
-        #             self._drive.with_velocity_x(
-        #                 -copysign(pow(self.drive_filter_x.calculate(self.driver_controller.getLeftY()), 1),
-        #                           self.drive_filter_x.calculate(self.driver_controller.getLeftY()))
-        #                 * self._max_speed * self.elevator_and_arm.get_accel_limit())
-        #             .with_velocity_y(-copysign(pow(self.drive_filter_y.calculate(self.driver_controller.getLeftX()), 1),
-        #                                        self.drive_filter_y.calculate(self.driver_controller.getLeftX()))
-        #                              * self._max_speed * self.elevator_and_arm.get_accel_limit())
-        #             .with_rotational_rate(-copysign(pow(self.driver_controller.getRightX(), 1),
-        #                                             self.driver_controller.getRightX())
-        #                                   * self._max_angular_rate * self.elevator_and_arm.get_accel_limit())
-        #         )
-        #     )
-        # )
-
-        # Slow mode NON CLT DRIVING
-        # (self.driver_controller.rightTrigger().and_(lambda: not self.driver_controller.x().getAsBoolean())
-        # .and_(lambda: not self.driver_controller.b().getAsBoolean()).whileTrue(
-        #     self.drivetrain.apply_request(
-        #         lambda: (
-        #             self._drive.with_velocity_x(
-        #                 -self.drive_filter_x.calculate(self.driver_controller.getLeftY())
-        #                 * self._max_speed * 0.4)
-        #             .with_velocity_y(
-        #                 -self.drive_filter_y.calculate(self.driver_controller.getLeftX())
-        #                 * self._max_speed * 0.4)
-        #             .with_rotational_rate(
-        #                 -self.driver_controller.getRightX()
-        #                 * self._max_angular_rate * 0.4)
-        #         )
-        #     )
-        # ))
-
         # DRIVER COMMANDS # ############################################################################################
         # Drive in Closed-Loop Turning Mode.
         self.drivetrain.setDefaultCommand(
@@ -223,7 +184,7 @@ class RobotContainer:
         # Automatic Launch command.
         self.driver_controller.rightTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
             ParallelCommandGroup(
-                PoseLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, self.util),
+                PoseLaunch(self.drivetrain, self.launcher, self.hopper, self.util),
                 runOnce(lambda: self.leds.set_state("yellow_chaser"), self.leds)
             )
         ).onFalse(
@@ -235,34 +196,13 @@ class RobotContainer:
 
         # Manual launch commands.
         self.driver_controller.leftBumper().and_(lambda: not self.test_bindings).whileTrue(
-            ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "hub")
+            ManualLaunch(self.drivetrain, self.launcher, self.hopper, "hub")
         )
         self.driver_controller.rightBumper().and_(lambda: not self.test_bindings).whileTrue(
-            ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "tower")
+            ManualLaunch(self.drivetrain, self.launcher, self.hopper, "tower")
         )
-
-        # Intake command.
-        self.driver_controller.leftTrigger(0.25).and_(lambda: not self.test_bindings).whileTrue(
-            ParallelCommandGroup(
-                Intake(self.intake, self.hopper),
-                runOnce(lambda: self.leds.set_state("purple_flashing"), self.leds)
-            )
-        ).onFalse(
-            runOnce(lambda: self.leds.set_state("default"), self.leds)
-        )
-
-        # Climber deploy.
-        self.driver_controller.povUp().and_(lambda: not self.test_bindings).onTrue(
-            SequentialCommandGroup(
-                SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(180)),
-                runOnce(lambda: self.climber.set_state("deployed"), self.climber),
-                runOnce(lambda: self.leds.set_state("rainbow_chaser"), self.leds)
-            )
-        )
-
-        # Climber climb.
-        self.driver_controller.povDown().and_(lambda: not self.test_bindings).onTrue(
-            runOnce(lambda: self.climber.set_state("climb"), self.climber)
+        self.driver_controller.povLeft().and_(lambda: not self.test_bindings).onTrue(
+            runOnce(lambda: self.launcher.live_reconfigure(), self.launcher).ignoringDisable(True)
         )
 
         # Stow robot for crossing the BUMP or TRENCH.
@@ -270,48 +210,19 @@ class RobotContainer:
             SequentialCommandGroup(
                 SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135)),
                 runOnce(lambda: self.launcher.set_state("safety"), self.launcher),
-                runOnce(lambda: self.climber.set_state("stow"), self.climber),
                 runOnce(lambda: self.leds.set_state("default"), self.leds)
             )
         )
 
-        # Emergency intake retraction.
-        self.driver_controller.b().and_(lambda: not self.test_bindings).onTrue(
-            runOnce(lambda: self.intake.set_state("stow"), self.intake)
-        )
-
         # Feed button (does not rotate drivetrain at all).
         self.driver_controller.x().and_(lambda: not self.test_bindings).whileTrue(
-            Feed(self.launcher, self.hopper, self.intake)
-        )
-
-        # Outpost feed button.
-        self.driver_controller.rightStick().and_(lambda: not self.test_bindings).whileTrue(
-            ParallelCommandGroup(
-                OutpostFeed(self.launcher, self.hopper, self.intake),
-                runOnce(lambda: self.leds.set_state("white_flashing"), self.leds)
-            )
-        ).onFalse(
-            runOnce(lambda: self.leds.set_state("default"), self.leds)
-        )
-
-        # Auto jam clear.
-        self.driver_controller.back().and_(lambda: not self.test_bindings).whileTrue(
-            JamClear(self.hopper, self.intake)
+            Feed(self.launcher, self.hopper)
         )
 
         # Alliance win notifier light
         button.Trigger(lambda: self.util.get_game_data_received() and DriverStation.isTeleopEnabled()).toggleOnTrue(
             runOnce(lambda: self.leds.set_state("yellow_" + self.util.get_alliance_winner() + "_chaser"),
                     self.leds)
-        )
-
-        # Auto climbing.
-        self.driver_controller.start().and_(lambda: not self.test_bindings).whileTrue(
-            SequentialCommandGroup(
-                AutoClimb(self.drivetrain, self.climber),
-                ResetCLT(self.drivetrain)
-            )
         )
 
         # Reset pose.
@@ -460,20 +371,17 @@ class RobotContainer:
         NamedCommands.registerCommand("start_timer", StartAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("stop_timer", StopAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("reset_CLT", ResetCLT(self.drivetrain))
-        NamedCommands.registerCommand("intake_on", IntakeAuto(self.intake, self.hopper))
         NamedCommands.registerCommand("3d_mode_on", runOnce(lambda: self.drivetrain.set_3d(True)))
         NamedCommands.registerCommand("3d_mode_off", runOnce(lambda: self.drivetrain.set_3d(True)))
-        NamedCommands.registerCommand("climb", runOnce(lambda: self.climber.set_state("climb"), self.climber))
-        NamedCommands.registerCommand("climb_deploy", runOnce(lambda: self.climber.set_state("deployed"), self.climber))
         NamedCommands.registerCommand("standby_flywheel", runOnce(lambda: self.launcher.set_state("standby"), self.launcher))
         NamedCommands.registerCommand(
             "launch",
             SequentialCommandGroup(
                 SequentialCommandGroup(
-                    AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
+                    AutoLaunch(self.drivetrain, self.launcher, self.hopper),
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
                 ).repeatedly().withTimeout(4), # TODO change to last shot condition
-            AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper),
+            AutoEndLaunch(self.launcher, self.drivetrain, self.hopper),
             ResetCLT(self.drivetrain)
             )
         )
