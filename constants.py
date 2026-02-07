@@ -221,15 +221,16 @@ class LauncherConstants:
     hood_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
 
     # Tuning values ----------------------------------------------------------------------------------------------------
-    mm_cruise_velocity = 15 # 10
-    mm_acceleration = 15 # 5
-    mm_jerk = 100
-    ks = 0
-    kv = 0.1
-    ka = 0.4
-    kp = 0.5 # 0.01
+    mm_cruise_velocity = 0 # 15
+    mm_acceleration = 0 # 15
+    mm_jerk = 0 # 50
+    ks = 0.1
+    kv = 0 # 0.1
+    ka = 0 # 0.4
+    kp = 2 # 0.5
     ki = 0
-    kd = 0 # 0
+    kd = 0
+    torque_feedforward = 3
 
     hood_mm_cruise_velocity = 10
     hood_mm_acceleration = 10

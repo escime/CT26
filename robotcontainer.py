@@ -75,17 +75,17 @@ class RobotContainer:
         SignalLogger.enable_auto_logging(False)
 
         # Configure system logging. ------------------------------------------------------------------------------------
-        self.alert_logging_enabled = Alert("Robot Logging is Enabled", Alert.AlertType.kWarning)
-        if wpilib.RobotBase.isReal():
-            if self._debug_table.getBoolean("Logging Enabled?", False) is True:
-                DataLogManager.start()
-                DriverStation.startDataLog(DataLogManager.getLog(), True)
-                SignalLogger.start()
-                self.alert_logging_enabled.set(True)
-            else:
-                SignalLogger.stop()
-        else:
-            SignalLogger.stop()
+        # self.alert_logging_enabled = Alert("Robot Logging is Enabled", Alert.AlertType.kWarning)
+        # if wpilib.RobotBase.isReal():
+            # if self._debug_table.getBoolean("Logging Enabled?", False) is True:
+        # DataLogManager.start()
+        # DriverStation.startDataLog(DataLogManager.getLog(), True)
+        # SignalLogger.start()
+            # self.alert_logging_enabled.set(True)
+            # else:
+            #     SignalLogger.stop()
+        # else:
+        SignalLogger.stop()
 
         # Startup subsystems. ------------------------------------------------------------------------------------------
         self.leds = LEDSubsystem()
@@ -319,40 +319,6 @@ class RobotContainer:
             return joystick_input
 
     def registerCommands(self):
-        # NamedCommands.registerCommand("rainbow_leds", runOnce(lambda: self.leds.set_state("rainbow"),
-        #                                                       self.leds))
-        # NamedCommands.registerCommand("flash_green",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([255, 0, 0]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_red",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([0, 255, 0]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_blue",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([0, 0, 255]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_purple",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([50, 149, 168]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_yellow",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([255, 255, 0]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("default_leds", runOnce(lambda: self.leds.set_state("default"),
-        #                                                       self.leds))
         NamedCommands.registerCommand("baseline", Baseline(self.drivetrain, self.timer))
         NamedCommands.registerCommand("check_drivetrain", CheckDrivetrain(self.drivetrain, self.timer))
         NamedCommands.registerCommand("override_heading_goal",
@@ -385,3 +351,7 @@ class RobotContainer:
             ResetCLT(self.drivetrain)
             )
         )
+        NamedCommands.registerCommand("intake_on", runOnce(lambda: print("yeehaw")))
+        NamedCommands.registerCommand("intake", runOnce(lambda: print("yeehaw")))
+        NamedCommands.registerCommand("climb_deploy", runOnce(lambda: print("yeehaw")))
+        NamedCommands.registerCommand("climb", runOnce(lambda: print("yeehaw")))

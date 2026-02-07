@@ -28,7 +28,7 @@ class ManualLaunch(Command):
         self._launching_active = False
 
     def execute(self):
-        self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
+        # self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
 
         if self.launcher.get_at_target() and not self._launching_active:
             self.hopper.set_state("launching")
