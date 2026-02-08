@@ -77,7 +77,7 @@ class IntakeSubsystem(Subsystem):
         intake_deploy_torque_config = intake_deploy_config.torque_current
         # intake_deploy_torque_config.with_peak_forward_torque_current(IntakeConstants.intake_deploy_peak_forward_current)
         # intake_deploy_torque_config.with_peak_reverse_torque_current(IntakeConstants.intake_deploy_peak_reverse_current)
-        intake_deploy_torque_config.with_torque_neutral_deadband(2)
+        intake_deploy_torque_config.with_torque_neutral_deadband(1)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
@@ -109,6 +109,18 @@ class IntakeSubsystem(Subsystem):
         self.state = state
         self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
         self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][1]))
+
+    def get_deployed(self) -> bool:
+        if self.intake_deploy.get_position().value_as_double >= IntakeConstants.deployed_amount:
+            return True
+        else:
+            return False
+
+    def get_retracted(self) -> bool:
+        if self.intake_deploy.get_position().value_as_double <= IntakeConstants.retracted_amount:
+            return True
+        else:
+            return False
 
     def get_state(self) -> str:
         return self.state

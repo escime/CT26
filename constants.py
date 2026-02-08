@@ -140,11 +140,6 @@ class VisionConstants:
 
     cam1 = photonCamera.PhotonCamera(cam_1_name)
 
-    # cam1_pose = (
-    #     photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-    #                                             photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-    #                                             cam1,
-    #                                             robot_to_cam1))
 
     cam1_pose = (
         photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
@@ -162,12 +157,6 @@ class VisionConstants:
 
     cam2 = photonCamera.PhotonCamera(cam_2_name)
 
-    # cam2_pose = (
-    #     photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-    #                                             photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-    #                                             cam2,
-    #                                             robot_to_cam2))
-
     cam2_pose = (
         photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
                                                 robot_to_cam2)
@@ -184,12 +173,6 @@ class VisionConstants:
 
     cam3 = photonCamera.PhotonCamera(cam_3_name)
 
-    # cam3_pose = (
-    #     photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
-    #                                             photonPoseEstimator.PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
-    #                                             cam3,
-    #                                             robot_to_cam3))
-
     cam3_pose = (
         photonPoseEstimator.PhotonPoseEstimator(april_tag_field_layout,
                                                 robot_to_cam3)
@@ -205,18 +188,18 @@ class VisionConstants:
 class LauncherConstants:
     state_values = {"off": 0, # In rotations per second
                     "safety": 100 / 60,
-                    "standby": 2000 / 60,
-                    "outpost": 500 / 60,
-                    "tower": 3000 / 60,
-                    "hub": 2000 / 60,
-                    "feed": 3000 / 60}
+                    "standby": 500 / 60,
+                    "outpost": 4000 / 60,
+                    "tower": 3500 / 60,
+                    "hub": 3000 / 60,
+                    "feed": 500 / 60}
     hood_state_values = {"off": 0,
                          "safety": 0,
                          "standby": 0,
-                         "outpost": 0.2,
-                         "tower": 0.1,
-                         "hub": 0,
-                         "feed": 0.2}
+                         "outpost": 1,
+                         "tower": 0.6,
+                         "hub": 0.25,
+                         "feed": 1}
 
     # Setup Values -----------------------------------------------------------------------------------------------------
     flywheel_main_can_id = 30
@@ -224,37 +207,39 @@ class LauncherConstants:
     stator_current_limit = 120
     supply_current_limit = 60
     gear_ratio = 1
-    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
-    flywheel_rps_threshold = 5
+    direction = InvertedValue.CLOCKWISE_POSITIVE
+    direction_2 = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+    flywheel_rps_threshold = 2
 
-    gp_sensor_port = 1
+    gp_sensor_port = 0
     launch_time_threshold = 0.5
 
     hood_can_id = 32
     hood_stator_current_limit = 120
     hood_supply_current_limit = 40
-    hood_gear_ratio = (330 * 24) / (15 * 12)
+    hood_gear_ratio = 1 # (330 * 24) / (15 * 12)
     hood_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
 
     # Tuning values ----------------------------------------------------------------------------------------------------
-    mm_cruise_velocity = 30
-    mm_acceleration = 20
-    mm_jerk = 100
-    ks = 0.25
-    kv = 0.09
-    ka = 1.56
-    kp = 10
+    mm_cruise_velocity = 0 # 15
+    mm_acceleration = 0 # 15
+    mm_jerk = 0 # 50
+    ks = 0.1
+    kv = 0 # 0.1
+    ka = 0 # 0.4
+    kp = 2 # 0.5
     ki = 0
     kd = 0
+    torque_feedforward = 3
 
-    hood_mm_cruise_velocity = 2.5
-    hood_mm_acceleration = 1.25
+    hood_mm_cruise_velocity = 10
+    hood_mm_acceleration = 10
     hood_mm_jerk = 100
-    hood_kg = 0.01
-    hood_ks = 0.25
-    hood_kv = 1.08
-    hood_ka = 0.0
-    hood_kp = 1
+    hood_kg = 0.24
+    hood_ks = 0.1
+    hood_kv = 0.1
+    hood_ka = 0
+    hood_kp = 75
     hood_ki = 0
     hood_kd = 0
 
@@ -262,17 +247,19 @@ class LauncherConstants:
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
         [0, 0, 2000 / 60],
-        [15, 0.2, 4000 / 60]
+        [15, 1, 4000 / 60]
     ]
 
 class IntakeConstants:
     # [Intake speed, Deploy power]
-    state_values = {"stow": [0, -60],
-                    "intake": [12, 60],
+    state_values = {"stow": [0, -10],
+                    "retracting": [0, -50],
+                    "intake": [5, 45],
+                    "intaking": [8, 10],
                     "deployed": [0, 10],
-                    "outpost": [-12, 10],
-                    "launching": [6, -45],
-                    "jam_clear": [-12, 0]
+                    "outpost": [-10, 10],
+                    "launching": [3, -50],
+                    "jam_clear": [-12, 10]
                     }
 
     intake_leader_can_id = 40
@@ -280,7 +267,7 @@ class IntakeConstants:
     stator_current_limit = 120
     supply_current_limit = 40
     gear_ratio = 1
-    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+    direction = InvertedValue.CLOCKWISE_POSITIVE
 
     intake_deploy_can_id = 42
     max_duty_cycle = 0.75
@@ -290,13 +277,16 @@ class IntakeConstants:
     intake_deploy_peak_forward_current = 60
     intake_deploy_peak_reverse_current = -60
 
+    deployed_amount = 2 # TODO tuning required
+    retracted_amount = 1 # TODO tuning required
+
 class HopperConstants:
     # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
     state_values = {
         "off": [0, 0, 0],
-        "launching": [12, 12, 3000 / 60],
-        "intaking": [-3, -3, 0],
-        "jam_clear": [-8, -8, -1000 / 60]
+        "launching": [4, 4, 2000 / 60],
+        "intaking": [-2, -2, 0],
+        "jam_clear": [-8, -8, -500 / 60]
     }
 
     right_indexer_can_id = 50
@@ -305,12 +295,13 @@ class HopperConstants:
     supply_current_limit = 40
     indexer_gear_ratio = 4
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+    direction_2 = InvertedValue.CLOCKWISE_POSITIVE
 
-    feeder_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+    feeder_direction = InvertedValue.CLOCKWISE_POSITIVE
     feeder_can_id = 52
     feeder_gear_ratio = 1
 
-    kp = 1
+    kp = 0.2
     ki = 0
     kd = 0
 

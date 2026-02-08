@@ -1,0 +1,79 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "named",
+          "data": {
+            "name": "start_timer"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "intake_on"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DEPOTStartToDEPOT"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "standby_flywheel"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "DEPOTtoHUBLeft"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "launch"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "intake_on"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "standby_flywheel"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "HUBtoNZLeft"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "launch"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "stop_timer"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}

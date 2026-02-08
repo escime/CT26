@@ -35,6 +35,7 @@ class Robot(TimedCommandRobot):
 
     def disabledInit(self) -> None:
         """Nothing is written here yet. Probably will not modify unless something is required for end-of-match."""
+        SignalLogger.stop()
 
     def disabledPeriodic(self) -> None:
         """This isn't the most useful state to call anything in because you can set commands to run in disabled.
@@ -63,8 +64,8 @@ class Robot(TimedCommandRobot):
                     self.m_robotcontainer.drivetrain).schedule()
         cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
                     self.m_robotcontainer.drivetrain).schedule()
-        elasticlib.select_tab("Teleoperated")
-        elasticlib.send_notification(self.teleop_notification)
+        # elasticlib.select_tab("Teleoperated")
+        # elasticlib.send_notification(self.teleop_notification)
         # self.m_robotcontainer.leds.set_state("default")
 
     def teleopPeriodic(self) -> None:
@@ -74,8 +75,8 @@ class Robot(TimedCommandRobot):
         """Reset the scheduler automatically when entering test mode."""
         CommandScheduler.getInstance().cancelAll()
         self.m_robotcontainer.enable_test_bindings(True)
-        elasticlib.select_tab("Test")
-        elasticlib.send_notification(self.test_notification)
+        # elasticlib.select_tab("Test")
+        # elasticlib.send_notification(self.test_notification)
         if RobotBase.isReal():
             SignalLogger.set_path("/media/sda1/")
             SignalLogger.start()

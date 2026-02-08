@@ -5,7 +5,6 @@ from commands2 import Command, button, SequentialCommandGroup, ParallelCommandGr
 
 from commands.manual_launch import ManualLaunch
 from constants import OIConstants
-from subsystems.ledsubsystem import LEDs
 from subsystems.ledsubsystem3 import LEDSubsystem
 from subsystems.utilsubsystem import UtilSubsystem
 from subsystems.command_swerve_drivetrain import ResetCLT, SetRotation, SetCLTTarget
@@ -31,8 +30,6 @@ from math import pi, pow, copysign, atan2
 
 from commands.baseline import Baseline
 from commands.check_drivetrain import CheckDrivetrain
-from commands.profiled_target import ProfiledTarget
-from commands.auto_alignment_multi_feedback import AutoAlignmentMultiFeedback
 from commands.start_auto_timer import StartAutoTimer
 from commands.stop_auto_timer import StopAutoTimer
 from commands.pathfollowing_endpoint import PathfollowingEndpointClose
@@ -47,6 +44,7 @@ from commands.feed import Feed
 from commands.outpost_feed import OutpostFeed
 from commands.jam_clear import JamClear
 from commands.intake_auto import IntakeAuto
+from commands.emergency_retract import EmergencyRetract
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -148,42 +146,6 @@ class RobotContainer:
         self.drive_filter_y = SlewRateLimiter(3, -3, 0)
 
     def configure_triggers(self) -> None:
-        # NON CLT DRIVING
-        # self.drivetrain.setDefaultCommand(  # Drivetrain will execute this command periodically
-        #     self.drivetrain.apply_request(
-        #         lambda: (
-        #             self._drive.with_velocity_x(
-        #                 -copysign(pow(self.drive_filter_x.calculate(self.driver_controller.getLeftY()), 1),
-        #                           self.drive_filter_x.calculate(self.driver_controller.getLeftY()))
-        #                 * self._max_speed * self.elevator_and_arm.get_accel_limit())
-        #             .with_velocity_y(-copysign(pow(self.drive_filter_y.calculate(self.driver_controller.getLeftX()), 1),
-        #                                        self.drive_filter_y.calculate(self.driver_controller.getLeftX()))
-        #                              * self._max_speed * self.elevator_and_arm.get_accel_limit())
-        #             .with_rotational_rate(-copysign(pow(self.driver_controller.getRightX(), 1),
-        #                                             self.driver_controller.getRightX())
-        #                                   * self._max_angular_rate * self.elevator_and_arm.get_accel_limit())
-        #         )
-        #     )
-        # )
-
-        # Slow mode NON CLT DRIVING
-        # (self.driver_controller.rightTrigger().and_(lambda: not self.driver_controller.x().getAsBoolean())
-        # .and_(lambda: not self.driver_controller.b().getAsBoolean()).whileTrue(
-        #     self.drivetrain.apply_request(
-        #         lambda: (
-        #             self._drive.with_velocity_x(
-        #                 -self.drive_filter_x.calculate(self.driver_controller.getLeftY())
-        #                 * self._max_speed * 0.4)
-        #             .with_velocity_y(
-        #                 -self.drive_filter_y.calculate(self.driver_controller.getLeftX())
-        #                 * self._max_speed * 0.4)
-        #             .with_rotational_rate(
-        #                 -self.driver_controller.getRightX()
-        #                 * self._max_angular_rate * 0.4)
-        #         )
-        #     )
-        # ))
-
         # DRIVER COMMANDS # ############################################################################################
         # Drive in Closed-Loop Turning Mode.
         self.drivetrain.setDefaultCommand(
@@ -199,6 +161,19 @@ class RobotContainer:
                     )
                 )
             )
+
+        self.driver_controller.axisMagnitudeGreaterThan(4, 0.04).and_(lambda: not self.test_bindings).and_(self.driver_controller.rightTrigger().negate()).whileTrue(
+            self.drivetrain.apply_request(
+                lambda: (
+                    self._drive
+                    .with_velocity_x(self.drive_filter_y.calculate(self.deadband_controller(self.driver_controller.getLeftY())) * -1 * self._max_speed)
+                    .with_velocity_y(self.drive_filter_x.calculate(self.deadband_controller(self.driver_controller.getLeftX())) * -1 * self._max_speed)
+                    .with_rotational_rate(self.deadband_controller(self.driver_controller.getRightX()) * -1 * self._max_angular_rate)
+                )
+            )
+        ).onFalse(
+            ResetCLT(self.drivetrain)
+        )
 
         # Disable CLT, activate open-loop driving.
         self.driver_controller.leftStick().toggleOnTrue(
@@ -236,9 +211,22 @@ class RobotContainer:
         # Manual launch commands.
         self.driver_controller.leftBumper().and_(lambda: not self.test_bindings).whileTrue(
             ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "hub")
+        ).onFalse(
+            SequentialCommandGroup(
+                WaitCommand(0.2),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper)
+            )
         )
         self.driver_controller.rightBumper().and_(lambda: not self.test_bindings).whileTrue(
             ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "tower")
+        ).onFalse(
+            SequentialCommandGroup(
+                WaitCommand(0.2),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper)
+            )
+        )
+        self.driver_controller.povLeft().and_(lambda: not self.test_bindings).onTrue(
+            runOnce(lambda: self.launcher.live_reconfigure(), self.launcher).ignoringDisable(True)
         )
 
         # Intake command.
@@ -277,7 +265,7 @@ class RobotContainer:
 
         # Emergency intake retraction.
         self.driver_controller.b().and_(lambda: not self.test_bindings).onTrue(
-            runOnce(lambda: self.intake.set_state("stow"), self.intake)
+            EmergencyRetract(self.intake)
         )
 
         # Feed button (does not rotate drivetrain at all).

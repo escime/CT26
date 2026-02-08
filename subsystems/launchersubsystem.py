@@ -2,10 +2,10 @@ from commands2 import Subsystem, sysid, Command
 from phoenix6 import SignalLogger
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, MotionMagicVelocityVoltage, Follower, MotionMagicVoltage
+from phoenix6.controls import VoltageOut, MotionMagicVelocityVoltage, Follower, MotionMagicVoltage, VelocityTorqueCurrentFOC
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
-from phoenix6.signals import MotorAlignmentValue
+from phoenix6.signals import MotorAlignmentValue, NeutralModeValue
 from phoenix6.utils import get_current_time_seconds, is_simulation
 from phoenix6.canbus import CANBus
 
@@ -39,6 +39,11 @@ class LauncherSubsystem(Subsystem):
         self.flywheel_follower = TalonFX(LauncherConstants.flywheel_follower_can_id, CANBus("rio"))
 
         self.flywheel_mm = MotionMagicVelocityVoltage(0, enable_foc=True)
+
+        self.flywheel_tvfoc = VelocityTorqueCurrentFOC(velocity=0,
+                                                       feed_forward=3,
+                                                       slot=0)
+
         flywheel_configs = TalonFXConfiguration()
 
         flywheel_configs.current_limits.stator_current_limit = LauncherConstants.stator_current_limit
@@ -62,13 +67,20 @@ class LauncherSubsystem(Subsystem):
         flywheel_slot0_configs.with_k_d(LauncherConstants.kd)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
-        status_2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
             status = self.flywheel.configurator.apply(flywheel_configs)
-            status_2 = self.flywheel_follower.configurator.apply(flywheel_configs)
-            if status.is_ok() and status_2.is_ok():
+            if status.is_ok():
                 break
-        if not status.is_ok() or not status_2.is_ok():
+        if not status.is_ok():
+            print(f"Could not apply configs, error code: {status.name}")
+
+        flywheel_configs.motor_output.inverted = LauncherConstants.direction_2
+        status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        for _ in range(0, 5):
+            status = self.flywheel_follower.configurator.apply(flywheel_configs)
+            if status.is_ok():
+                break
+        if not status.is_ok():
             print(f"Could not apply configs, error code: {status.name}")
 
         # self.flywheel_follower.set_control(Follower(LauncherConstants.flywheel_main_can_id, MotorAlignmentValue.OPPOSED))
@@ -95,13 +107,13 @@ class LauncherSubsystem(Subsystem):
         hood_config = TalonFXConfiguration()
         self.hood_mm = MotionMagicVoltage(0, True)
 
-        hood_config.motor_output.neutral_mode = hood_config.motor_output.neutral_mode.BRAKE
-
         hood_config.current_limits.supply_current_limit = LauncherConstants.hood_supply_current_limit
         hood_config.current_limits.supply_current_limit_enable = True
         hood_config.current_limits.stator_current_limit = LauncherConstants.hood_stator_current_limit
         hood_config.current_limits.stator_current_limit_enable = True
         hood_config.feedback.sensor_to_mechanism_ratio = LauncherConstants.hood_gear_ratio
+        hood_config.motor_output.neutral_mode = NeutralModeValue.BRAKE
+
 
         hood_mm_config = hood_config.motion_magic
         hood_mm_config.motion_magic_cruise_velocity = LauncherConstants.hood_mm_cruise_velocity
@@ -145,7 +157,7 @@ class LauncherSubsystem(Subsystem):
             sysid.SysIdRoutine.Config(
                 stepVoltage=4.0,
                 recordState=lambda state: SignalLogger.write_string(
-                    "state", SysIdRoutineLog.stateEnumToString(state)
+                    "SysId_State", SysIdRoutineLog.stateEnumToString(state)
                 ),
             ),
             sysid.SysIdRoutine.Mechanism(
@@ -158,7 +170,7 @@ class LauncherSubsystem(Subsystem):
             sysid.SysIdRoutine.Config(
                 stepVoltage=4.0,
                 recordState=lambda state: SignalLogger.write_string(
-                    "state", SysIdRoutineLog.stateEnumToString(state)
+                    "SysId_State", SysIdRoutineLog.stateEnumToString(state)
                 ),
             ),
             sysid.SysIdRoutine.Mechanism(
@@ -169,20 +181,106 @@ class LauncherSubsystem(Subsystem):
         )
         self.setName("Launcher")
 
+        self._launcher_table.putNumber("Flywheel MM Cruise Velocity", LauncherConstants.mm_cruise_velocity)
+        self._launcher_table.putNumber("Flywheel MM Acceleration", LauncherConstants.mm_acceleration)
+        self._launcher_table.putNumber("Flywheel MM Jerk", LauncherConstants.mm_jerk)
+        self._launcher_table.putNumber("Flywheel kS", LauncherConstants.ks)
+        self._launcher_table.putNumber("Flywheel kV", LauncherConstants.kv)
+        self._launcher_table.putNumber("Flywheel kA", LauncherConstants.ka)
+        self._launcher_table.putNumber("Flywheel kP", LauncherConstants.kp)
+        self._launcher_table.putNumber("Flywheel kI", LauncherConstants.ki)
+        self._launcher_table.putNumber("Flywheel kD", LauncherConstants.kd)
+        self._launcher_table.putNumber("Torque Feedforward", LauncherConstants.torque_feedforward)
+
+        self._launcher_table.putNumber("Hood MM Cruise Velocity", LauncherConstants.hood_mm_cruise_velocity)
+        self._launcher_table.putNumber("Hood MM Acceleration", LauncherConstants.hood_mm_acceleration)
+        self._launcher_table.putNumber("Hood MM Jerk", LauncherConstants.hood_mm_jerk)
+        self._launcher_table.putNumber("Hood kG", LauncherConstants.hood_kg)
+        self._launcher_table.putNumber("Hood kS", LauncherConstants.hood_ks)
+        self._launcher_table.putNumber("Hood kV", LauncherConstants.hood_kv)
+        self._launcher_table.putNumber("Hood kA", LauncherConstants.hood_ka)
+        self._launcher_table.putNumber("Hood kP", LauncherConstants.hood_kp)
+        self._launcher_table.putNumber("Hood kI", LauncherConstants.hood_ki)
+        self._launcher_table.putNumber("Hood kD", LauncherConstants.hood_kd)
+
+    def live_reconfigure(self) -> None:
+        flywheel_configs = TalonFXConfiguration()
+        flywheel_configs.current_limits.stator_current_limit = LauncherConstants.stator_current_limit
+        flywheel_configs.current_limits.stator_current_limit_enable = True
+        flywheel_configs.current_limits.supply_current_limit = LauncherConstants.supply_current_limit
+        flywheel_configs.current_limits.supply_current_limit_enable = True
+        flywheel_configs.feedback.sensor_to_mechanism_ratio = LauncherConstants.gear_ratio
+        flywheel_configs.motor_output.inverted = LauncherConstants.direction
+
+        flywheel_mm_configs = flywheel_configs.motion_magic
+        flywheel_mm_configs.motion_magic_cruise_velocity = (
+            self._launcher_table.getNumber("Flywheel MM Cruise Velocity", LauncherConstants.mm_cruise_velocity))
+        flywheel_mm_configs.motion_magic_acceleration = (
+            self._launcher_table.getNumber("Flywheel MM Acceleration", LauncherConstants.mm_acceleration))
+        flywheel_mm_configs.motion_magic_jerk = (
+            self._launcher_table.getNumber("Flywheel MM Jerk", LauncherConstants.mm_jerk))
+
+        flywheel_slot0_configs = flywheel_configs.slot0
+        flywheel_slot0_configs.with_k_s(self._launcher_table.getNumber("Flywheel kS", LauncherConstants.ks))
+        flywheel_slot0_configs.with_k_v(self._launcher_table.getNumber("Flywheel kV", LauncherConstants.kv))
+        flywheel_slot0_configs.with_k_a(self._launcher_table.getNumber("Flywheel kA", LauncherConstants.ka))
+        flywheel_slot0_configs.with_k_p(self._launcher_table.getNumber("Flywheel kP", LauncherConstants.kp))
+        flywheel_slot0_configs.with_k_i(self._launcher_table.getNumber("Flywheel kI", LauncherConstants.ki))
+        flywheel_slot0_configs.with_k_d(self._launcher_table.getNumber("Flywheel kD", LauncherConstants.kd))
+        self.flywheel_tvfoc.feed_forward = self._launcher_table.getNumber("Torque Feedforward", LauncherConstants.torque_feedforward)
+
+        hood_config = TalonFXConfiguration()
+        hood_config.current_limits.supply_current_limit = LauncherConstants.hood_supply_current_limit
+        hood_config.current_limits.supply_current_limit_enable = True
+        hood_config.current_limits.stator_current_limit = LauncherConstants.hood_stator_current_limit
+        hood_config.current_limits.stator_current_limit_enable = True
+        hood_config.feedback.sensor_to_mechanism_ratio = LauncherConstants.hood_gear_ratio
+        hood_config.motor_output.neutral_mode = NeutralModeValue.BRAKE
+
+        hood_mm_config = hood_config.motion_magic
+        hood_mm_config.motion_magic_cruise_velocity = (
+            self._launcher_table.getNumber("Hood MM Cruise Velocity", LauncherConstants.hood_mm_cruise_velocity))
+        hood_mm_config.motion_magic_acceleration = (
+            self._launcher_table.getNumber("Hood MM Acceleration", LauncherConstants.hood_mm_acceleration))
+        hood_mm_config.motion_magic_jerk = (
+            self._launcher_table.getNumber("Hood MM Jerk", LauncherConstants.hood_mm_jerk))
+
+        hood_slot0_config = hood_config.slot0
+        hood_slot0_config.k_g = self._launcher_table.getNumber("Hood kG", LauncherConstants.hood_kg)
+        hood_slot0_config.k_s = self._launcher_table.getNumber("Hood kS", LauncherConstants.hood_ks)
+        hood_slot0_config.k_v = self._launcher_table.getNumber("Hood kV", LauncherConstants.hood_kv)
+        hood_slot0_config.k_a = self._launcher_table.getNumber("Hood kA", LauncherConstants.hood_ka)
+        hood_slot0_config.k_p = self._launcher_table.getNumber("Hood kP", LauncherConstants.hood_kp)
+        hood_slot0_config.k_i = self._launcher_table.getNumber("Hood kI", LauncherConstants.hood_ki)
+        hood_slot0_config.k_d = self._launcher_table.getNumber("Hood kD", LauncherConstants.hood_kd)
+
+        status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        status2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        status3: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        for _ in range(0, 5):
+            status = self.flywheel.configurator.apply(flywheel_configs)
+            status2 = self.flywheel_follower.configurator.apply(flywheel_configs)
+            status3 = self.hood.configurator.apply(hood_config)
+            if status.is_ok() and status2.is_ok() and status3.is_ok():
+                print("Configuration applied.")
+                break
+        if not status.is_ok() or not status2.is_ok() or not status3.is_ok():
+            print(f"Could not apply configs, error code: {status.name}")
+
     def set_state(self, state: str) -> None:
         self.setpoint_enabled_time = get_current_time_seconds()
         self.state = state
         if state == "auto":
-            self.flywheel.set_control(self.flywheel_mm.with_velocity(self.auto_velocity).with_slot(0))
-            self.flywheel_follower.set_control(self.flywheel_mm.with_velocity(self.auto_velocity).with_slot(0))
+            self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self.auto_velocity).with_slot(0))
+            self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self.auto_velocity).with_slot(0))
             self.hood.set_control(self.hood_mm.with_position(self.auto_hood_position).with_slot(0))
         elif state == "off":
             self.flywheel.set_control(self.flywheel_volts.with_output(0))
             self.flywheel_follower.set_control(self.flywheel_volts.with_output(0))
             self.hood.set_control(self.hood_mm.with_position(0).with_slot(0))
         else:
-            self.flywheel.set_control(self.flywheel_mm.with_velocity(self.state_values[state]).with_slot(0))
-            self.flywheel_follower.set_control(self.flywheel_mm.with_velocity(self.state_values[state]).with_slot(0))
+            self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self.state_values[state]).with_slot(0))
+            self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self.state_values[state]).with_slot(0))
             self.hood.set_control(self.hood_mm.with_position(self.hood_state_values[state]).with_slot(0))
 
     def set_flywheel_auto_default_velocity(self, velocity: float) -> None:
@@ -280,3 +378,4 @@ class LauncherSubsystem(Subsystem):
         self._launcher_table.putNumber("Flywheel Auto Target", self.auto_velocity)
         self._launcher_table.putNumber("Hood Angle", self.hood.get_position().value_as_double)
         self._launcher_table.putNumber("Hood Auto Target", self.auto_hood_position)
+        self._launcher_table.putBoolean("Launcher Sensor", self.get_sensor_on())
