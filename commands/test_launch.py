@@ -6,16 +6,15 @@ from subsystems.launchersubsystem import LauncherSubsystem
 from subsystems.intakesubsystem import IntakeSubsystem
 from phoenix6 import swerve
 
-class ManualLaunch(Command):
+class TestLaunch(Command):
     """This is an advanced launch command. It implements shoot on the move using 3D pose tracking."""
     def __init__(self, drivetrain: CommandSwerveDrivetrain, launcher: LauncherSubsystem, hopper: HopperSubsystem,
-                 intake: IntakeSubsystem, setpoint: str):
+                 intake: IntakeSubsystem):
         super().__init__()
         self.drive = drivetrain
         self.launcher = launcher
         self.hopper = hopper
         self.intake = intake
-        self.setpoint = setpoint
 
         self.brake = swerve.requests.SwerveDriveBrake()
 
@@ -26,7 +25,7 @@ class ManualLaunch(Command):
         self.addRequirements(intake)
 
     def initialize(self):
-        self.launcher.set_state(self.setpoint)
+        self.launcher.set_state("testing")
         # self.intake.set_state("deployed")
         self._launching_active = False
 

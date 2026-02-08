@@ -45,6 +45,7 @@ from commands.outpost_feed import OutpostFeed
 from commands.jam_clear import JamClear
 from commands.intake_auto import IntakeAuto
 from commands.emergency_retract import EmergencyRetract
+from commands.test_launch import TestLaunch
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -213,20 +214,31 @@ class RobotContainer:
             ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "hub")
         ).onFalse(
             SequentialCommandGroup(
-                WaitCommand(0.2),
-                runOnce(lambda: self.hopper.set_state("off"), self.hopper)
+                EmergencyRetract(self.intake),
+                WaitCommand(0.5),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper),
             )
         )
         self.driver_controller.rightBumper().and_(lambda: not self.test_bindings).whileTrue(
             ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "tower")
         ).onFalse(
             SequentialCommandGroup(
-                WaitCommand(0.2),
+                EmergencyRetract(self.intake),
+                WaitCommand(0.5),
                 runOnce(lambda: self.hopper.set_state("off"), self.hopper)
             )
         )
         self.driver_controller.povLeft().and_(lambda: not self.test_bindings).onTrue(
             runOnce(lambda: self.launcher.live_reconfigure(), self.launcher).ignoringDisable(True)
+        )
+        self.driver_controller.povRight().and_(lambda: not self.test_bindings).whileTrue(
+            TestLaunch(self.drivetrain, self.launcher, self.hopper, self.intake)
+        ).onFalse(
+            SequentialCommandGroup(
+                EmergencyRetract(self.intake),
+                WaitCommand(0.5),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper)
+            )
         )
 
         # Intake command.
@@ -280,7 +292,11 @@ class RobotContainer:
                 runOnce(lambda: self.leds.set_state("white_flashing"), self.leds)
             )
         ).onFalse(
-            runOnce(lambda: self.leds.set_state("default"), self.leds)
+            SequentialCommandGroup(
+                WaitCommand(0.5),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper),
+                runOnce(lambda: self.leds.set_state("default"), self.leds)
+            )
         )
 
         # Auto jam clear.

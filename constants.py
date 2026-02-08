@@ -179,8 +179,8 @@ class VisionConstants:
     )
 
     # Camera Lists -----------------------------------------------------------------------------------------------------
-    robot_cameras_3d = [cam1, cam2, cam3]
-    robot_cameras_poses_3d = [cam1_pose, cam2_pose, cam3_pose]
+    robot_cameras_3d = [cam1]
+    robot_cameras_poses_3d = [cam1_pose]
     robot_cameras_2d = [cam1]
     robot_cameras_2d_height = robot_to_cam1.z
     robot_cameras_2d_angle = abs(robot_to_cam1.rotation().y_degrees)
@@ -189,15 +189,15 @@ class LauncherConstants:
     state_values = {"off": 0, # In rotations per second
                     "safety": 100 / 60,
                     "standby": 500 / 60,
-                    "outpost": 4000 / 60,
-                    "tower": 3500 / 60,
+                    "outpost": 1000 / 60,
+                    "tower": 4750 / 60, # 3500
                     "hub": 3000 / 60,
                     "feed": 500 / 60}
     hood_state_values = {"off": 0,
                          "safety": 0,
                          "standby": 0,
                          "outpost": 1,
-                         "tower": 0.6,
+                         "tower": 1, # 0.6
                          "hub": 0.25,
                          "feed": 1}
 
@@ -227,10 +227,10 @@ class LauncherConstants:
     ks = 0.1
     kv = 0 # 0.1
     ka = 0 # 0.4
-    kp = 2 # 0.5
+    kp = 5 # 0.5
     ki = 0
     kd = 0
-    torque_feedforward = 3
+    torque_feedforward = 4
 
     hood_mm_cruise_velocity = 10
     hood_mm_acceleration = 10
@@ -257,8 +257,9 @@ class IntakeConstants:
                     "intake": [5, 45],
                     "intaking": [8, 10],
                     "deployed": [0, 10],
-                    "outpost": [-10, 10],
-                    "launching": [3, -50],
+                    "outpost": [-10, 0],
+                    "launching": [3, -20], # -40
+                    "launching_reverse": [3, 20], # 40
                     "jam_clear": [-12, 10]
                     }
 
@@ -277,16 +278,16 @@ class IntakeConstants:
     intake_deploy_peak_forward_current = 60
     intake_deploy_peak_reverse_current = -60
 
-    deployed_amount = 2 # TODO tuning required
-    retracted_amount = 1 # TODO tuning required
+    deployed_amount = 0.15
+    retracted_amount = 0.04
 
 class HopperConstants:
     # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
     state_values = {
         "off": [0, 0, 0],
-        "launching": [4, 4, 2000 / 60],
+        "launching": [5, 5, 4000 / 60],
         "intaking": [-2, -2, 0],
-        "jam_clear": [-8, -8, -500 / 60]
+        "jam_clear": [-3, -3, -750 / 60]
     }
 
     right_indexer_can_id = 50

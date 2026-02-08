@@ -1,7 +1,7 @@
 from commands2 import Subsystem
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, Follower, TorqueCurrentFOC
+from phoenix6.controls import VoltageOut, Follower, TorqueCurrentFOC, PositionVoltage
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
 from phoenix6.signals import MotorAlignmentValue
@@ -64,6 +64,7 @@ class IntakeSubsystem(Subsystem):
                                                    2,
                                                    True
                                                    )
+        self.intake_deploy_pid = PositionVoltage(0, 0, True)
 
         intake_deploy_config.motor_output.neutral_mode = intake_deploy_config.motor_output.neutral_mode.COAST
         intake_deploy_config.motor_output.inverted = intake_deploy_config.motor_output.inverted.COUNTER_CLOCKWISE_POSITIVE
@@ -73,6 +74,12 @@ class IntakeSubsystem(Subsystem):
         intake_deploy_config.current_limits.stator_current_limit = IntakeConstants.intake_deploy_stator_current_limit
         intake_deploy_config.current_limits.stator_current_limit_enable = True
         intake_deploy_config.feedback.sensor_to_mechanism_ratio = IntakeConstants.intake_deploy_gear_ratio
+
+        intake_deploy_pid_config = intake_deploy_config.slot0
+        intake_deploy_pid_config.k_p = 0.01
+        intake_deploy_pid_config.k_i = 0
+        intake_deploy_pid_config.k_d = 0
+
 
         intake_deploy_torque_config = intake_deploy_config.torque_current
         # intake_deploy_torque_config.with_peak_forward_torque_current(IntakeConstants.intake_deploy_peak_forward_current)
@@ -104,11 +111,13 @@ class IntakeSubsystem(Subsystem):
 
         # Other Setup --------------------------------------------------------------------------------------------------
         self.last_time = get_current_time_seconds()
+        self._last_launch_cycle = get_current_time_seconds()
+        self._last_launch_cycle_up = False
 
     def set_state(self, state: str) -> None:
         self.state = state
-        self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
         self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][1]))
+        self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
 
     def get_deployed(self) -> bool:
         if self.intake_deploy.get_position().value_as_double >= IntakeConstants.deployed_amount:
@@ -146,3 +155,14 @@ class IntakeSubsystem(Subsystem):
             self._intake_table.putBoolean("Intake Rollers On?", True)
         else:
             self._intake_table.putBoolean("Intake Rollers On?", False)
+
+        if self.state == "launching" or self.state == "launching_reverse":
+            if get_current_time_seconds() - self._last_launch_cycle > 0.5:
+                self._last_launch_cycle_up = not self._last_launch_cycle_up
+
+                if self._last_launch_cycle_up:
+                    self.set_state("launching")
+                else:
+                    self.set_state("launching_reverse")
+
+                self._last_launch_cycle = get_current_time_seconds()

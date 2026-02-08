@@ -353,10 +353,10 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         if self.photon_cam_array_3d[0].isConnected() and not utils.is_simulation():
             if self.mode_3d:
                 self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
-            else:
-                self.update_2d_solution()
-                self._vision_table.putNumber("Target Yaw", self.target_yaw)
-                self._vision_table.putNumber("Target Range (in)",  metersToInches(self.target_range))
+            # else:
+            #     self.update_2d_solution()
+            #     self._vision_table.putNumber("Target Yaw", self.target_yaw)
+            #     self._vision_table.putNumber("Target Range (in)",  metersToInches(self.target_range))
 
         # If in simulation, update PhotonVision for sim.
         if utils.is_simulation():

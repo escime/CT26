@@ -203,6 +203,9 @@ class LauncherSubsystem(Subsystem):
         self._launcher_table.putNumber("Hood kI", LauncherConstants.hood_ki)
         self._launcher_table.putNumber("Hood kD", LauncherConstants.hood_kd)
 
+        self._launcher_table.putNumber("Testing Launcher Speed", 2000)
+        self._launcher_table.putNumber("Testing Launcher Hood Angle", 0)
+
     def live_reconfigure(self) -> None:
         flywheel_configs = TalonFXConfiguration()
         flywheel_configs.current_limits.stator_current_limit = LauncherConstants.stator_current_limit
@@ -274,6 +277,10 @@ class LauncherSubsystem(Subsystem):
             self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self.auto_velocity).with_slot(0))
             self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self.auto_velocity).with_slot(0))
             self.hood.set_control(self.hood_mm.with_position(self.auto_hood_position).with_slot(0))
+        elif state == "testing":
+            self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self._launcher_table.getNumber("Testing Launcher Speed", 2000) / 60).with_slot(0))
+            self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self._launcher_table.getNumber("Testing Launcher Speed", 2000) / 60).with_slot(0))
+            self.hood.set_control(self.hood_mm.with_position(self._launcher_table.getNumber("Testing Launcher Hood Angle", 0)).with_slot(0))
         elif state == "off":
             self.flywheel.set_control(self.flywheel_volts.with_output(0))
             self.flywheel_follower.set_control(self.flywheel_volts.with_output(0))
@@ -331,6 +338,11 @@ class LauncherSubsystem(Subsystem):
             return True
         elif self.state == "auto":
             if self.auto_velocity - LauncherConstants.flywheel_rps_threshold < self.get_velocity()[0] <= self.auto_velocity + LauncherConstants.flywheel_rps_threshold:
+                return True
+            else:
+                return False
+        elif self.state == "testing":
+            if (self._launcher_table.getNumber("Testing Launcher Speed", 2000) / 60) - LauncherConstants.flywheel_rps_threshold < self.get_velocity()[0] <= (self._launcher_table.getNumber("Testing Launcher Speed", 2000) / 60) + LauncherConstants.flywheel_rps_threshold:
                 return True
             else:
                 return False

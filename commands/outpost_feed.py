@@ -32,5 +32,5 @@ class OutpostFeed(Command):
 
     def end(self, interrupted: bool):
         self.launcher.set_state("off")
-        self.hopper.set_state("off")
+        # self.hopper.set_state("off")
         self.intake.set_state("deployed")
