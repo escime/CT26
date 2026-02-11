@@ -280,7 +280,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
 
         self.tag_seen = False
 
-        self.mode_3d = False
+        self.mode_3d = True
         self.target_yaw = -100000
         self.target_range = -100000
         self.target_id = -100000
@@ -351,8 +351,8 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
 
         # Update PhotonVision cameras in real-life scenarios.
         if self.photon_cam_array_3d[0].isConnected() and not utils.is_simulation():
-            if self.mode_3d:
-                self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
+            # if self.mode_3d:
+            self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
             # else:
             #     self.update_2d_solution()
             #     self._vision_table.putNumber("Target Yaw", self.target_yaw)

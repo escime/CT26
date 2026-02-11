@@ -24,6 +24,7 @@ from constants import LauncherConstants
 class LauncherSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
+        self._debug_mode = True
         self._last_sim_time = get_current_time_seconds()
         self.state_values = LauncherConstants.state_values
         self.hood_state_values = LauncherConstants.hood_state_values
@@ -258,16 +259,23 @@ class LauncherSubsystem(Subsystem):
         hood_slot0_config.k_d = self._launcher_table.getNumber("Hood kD", LauncherConstants.hood_kd)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
-        status2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         status3: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
             status = self.flywheel.configurator.apply(flywheel_configs)
-            status2 = self.flywheel_follower.configurator.apply(flywheel_configs)
             status3 = self.hood.configurator.apply(hood_config)
-            if status.is_ok() and status2.is_ok() and status3.is_ok():
+            if status.is_ok() and status3.is_ok():
                 print("Configuration applied.")
                 break
-        if not status.is_ok() or not status2.is_ok() or not status3.is_ok():
+        if not status.is_ok() or not status3.is_ok():
+            print(f"Could not apply configs, error code: {status.name}")
+
+        flywheel_configs.motor_output.inverted = LauncherConstants.direction_2
+        status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        for _ in range(0, 5):
+            status = self.flywheel_follower.configurator.apply(flywheel_configs)
+            if status.is_ok():
+                break
+        if not status.is_ok():
             print(f"Could not apply configs, error code: {status.name}")
 
     def set_state(self, state: str) -> None:
@@ -293,6 +301,9 @@ class LauncherSubsystem(Subsystem):
     def set_flywheel_auto_default_velocity(self, velocity: float) -> None:
         self.auto_velocity = velocity
 
+    def set_debug_mode(self, on: bool) -> None:
+        self._debug_mode = on
+
     def set_target_by_range(self, distance_to_goal: float) -> None:
         self.state = "auto"
         distance_array = []
@@ -304,8 +315,8 @@ class LauncherSubsystem(Subsystem):
             launcher_speed_array.append(x[2])
 
         self.hood.set_control(self.hood_mm.with_position(interp(distance_to_goal, distance_array, hood_angle_array)))
-        self.flywheel.set_control(self.flywheel_mm.with_velocity(interp(distance_to_goal, distance_array, launcher_speed_array)))
-        self.flywheel_follower.set_control(self.flywheel_mm.with_velocity(interp(distance_to_goal, distance_array, launcher_speed_array)))
+        self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(interp(distance_to_goal, distance_array, launcher_speed_array)))
+        self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(interp(distance_to_goal, distance_array, launcher_speed_array)))
         self.auto_velocity = interp(distance_to_goal, distance_array, launcher_speed_array)
         self.auto_hood_position = interp(distance_to_goal, distance_array, hood_angle_array)
 
@@ -383,11 +394,14 @@ class LauncherSubsystem(Subsystem):
             self.update_sim()
 
         self.record_launch_time()
-        self._launcher_table.putNumber("Left Flywheel Velocity", self.get_velocity()[0])
-        self._launcher_table.putNumber("Right Flywheel Velocity", self.get_velocity()[1])
+
+        if self._debug_mode:
+            self._launcher_table.putNumber("Left Flywheel Velocity", self.get_velocity()[0])
+            self._launcher_table.putNumber("Right Flywheel Velocity", self.get_velocity()[1])
+            self._launcher_table.putNumber("Time Since Setpoint Activated", get_current_time_seconds() - self.setpoint_enabled_time)
+            self._launcher_table.putNumber("Flywheel Auto Target", self.auto_velocity)
+            self._launcher_table.putNumber("Hood Angle", self.hood.get_position().value_as_double)
+            self._launcher_table.putNumber("Hood Auto Target", self.auto_hood_position)
+            self._launcher_table.putBoolean("Launcher Sensor", self.get_sensor_on())
+
         self._launcher_table.putBoolean("Flywheel at Speed", self.get_at_target())
-        self._launcher_table.putNumber("Time Since Setpoint Activated", get_current_time_seconds() - self.setpoint_enabled_time)
-        self._launcher_table.putNumber("Flywheel Auto Target", self.auto_velocity)
-        self._launcher_table.putNumber("Hood Angle", self.hood.get_position().value_as_double)
-        self._launcher_table.putNumber("Hood Auto Target", self.auto_hood_position)
-        self._launcher_table.putBoolean("Launcher Sensor", self.get_sensor_on())

@@ -20,6 +20,7 @@ from constants import HopperConstants
 class HopperSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
+        self._debug_mode = True
         self._last_sim_time = get_current_time_seconds()
         self.state_values = HopperConstants.state_values
         self.state = "off"
@@ -102,6 +103,9 @@ class HopperSubsystem(Subsystem):
     def get_state(self) -> str:
         return self.state
 
+    def set_debug_mode(self, on: bool) -> None:
+        self._debug_mode = on
+
     # def update_sim(self):
     #     current_time = get_current_time_seconds()
     #     dt = current_time - self.last_time
@@ -110,5 +114,5 @@ class HopperSubsystem(Subsystem):
     def periodic(self) -> None:
         # if is_simulation():
         #     self.update_sim()
-
-        self._hopper_table.putString("Hopper State", self.get_state())
+        if self._debug_mode:
+            self._hopper_table.putString("Hopper State", self.get_state())

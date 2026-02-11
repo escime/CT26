@@ -26,7 +26,7 @@ class TestLaunch(Command):
 
     def initialize(self):
         self.launcher.set_state("testing")
-        # self.intake.set_state("deployed")
+        self.intake.set_state("deployed")
         self._launching_active = False
 
     def execute(self):
@@ -34,7 +34,7 @@ class TestLaunch(Command):
 
         if self.launcher.get_at_target() and not self._launching_active:
             self.hopper.set_state("launching")
-            # self.intake.set_state("launching")
+            self.intake.set_state("launching")
             self._launching_active = True
 
     def end(self, interrupted: bool):

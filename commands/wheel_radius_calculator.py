@@ -48,14 +48,14 @@ class WheelRadiusCalculator(Command):
         self.drive.apply_request(lambda: (self.drive_request
                                           .with_velocity_x(0)
                                           .with_velocity_y(0)
-                                          .with_rotational_rate(0.05 * rotationsToRadians(0.75)))).schedule()
+                                          .with_rotational_rate(0.15 * rotationsToRadians(0.75)))).schedule()
 
         # print(abs(self.drive.get_module(0).drive_motor.get_position().value_as_double))
         # print("Start angle: " + str(self.start_angle))
         # print("Current angle: " + str(self.drive.get_pose().rotation().degrees()))
 
     def isFinished(self) -> bool:
-        if self.start_angle - 0.1 < self.drive.get_pose().rotation().degrees() <= self.start_angle + 0.1 and self.timer.get() - 2 > self.start_time:
+        if self.start_angle - 0.5 < self.drive.get_pose().rotation().degrees() <= self.start_angle + 0.5 and self.timer.get() - 2 > self.start_time:
             return True
         else:
             return False
@@ -74,7 +74,7 @@ class WheelRadiusCalculator(Command):
 
             self._debug_table.putNumber("Average Rotations Traveled", avg_dist)
 
-            wheel_radius = (2 * metersToInches(AutoConstants.drive_base_radius)) / ( 2 * avg_dist) * 6.746031746031747
+            wheel_radius = (2 * metersToInches(AutoConstants.drive_base_radius)) / ( 2 * avg_dist) * 6.026785714285714
             # Weird number above is the drive gear ratio from phoenix tuner, which is local so can't be called
 
             self._debug_table.putNumber("Average Wheel Radius", wheel_radius)

@@ -46,6 +46,7 @@ from commands.jam_clear import JamClear
 from commands.intake_auto import IntakeAuto
 from commands.emergency_retract import EmergencyRetract
 from commands.test_launch import TestLaunch
+from commands.debug_mode import DebugMode
 
 # Controller layout: https://padcrafter.com/?templates=CT26+Driver+Controller%2C+TELEOP%7CCT26+Driver+Controller%2C+TEST&col=%23D3D3D3%2C%233E4B50%2C%23FFFFFF&leftStick=Translate+%28CLT%29%7CTranslate&rightStick=Rotate+%28CLT%29&rightTrigger=%28HOLD%29+Slow+Mode%7C%28HOLD%29+Set+SysID+to+Translation&dpadUp=POV+Snap+North&dpadRight=POV+Snap+East&dpadLeft=POV+Snap+West&dpadDown=POV+Snap+South&yButton=Reset+Pose%7C%28HOLD%29+Run+Quasistatic+Forward&leftTrigger=%28HOLD%29+Brake+Mode&plat=%7C%7C0&startButton=%7C%28HOLD%29+Point+Modules&backButton=%7CCalculate+Wheel+Radius&rightBumper=%7C%28HOLD%29+Set+SysID+to+Rotation&leftBumper=%7C%28HOLD%29+Set+SysID+to+Steer&xButton=%7C%28HOLD%29+Run+Dynamic+Reverse&bButton=%7C%28HOLD%29+Run+Quasistatic+Reverse&aButton=%7C%28HOLD%29+Run+Dynamic+Forward&rightStickClick=%7CRotate
 
@@ -143,8 +144,8 @@ class RobotContainer:
         self.m_chooser = AutoBuilder.buildAutoChooser("DoNothing")
         SmartDashboard.putData("Auto Select", self.m_chooser)
 
-        self.drive_filter_x = SlewRateLimiter(3, -3, 0)
-        self.drive_filter_y = SlewRateLimiter(3, -3, 0)
+        self.drive_filter_x = SlewRateLimiter(5, -5, 0)
+        self.drive_filter_y = SlewRateLimiter(5, -5, 0)
 
     def configure_triggers(self) -> None:
         # DRIVER COMMANDS # ############################################################################################
@@ -163,7 +164,7 @@ class RobotContainer:
                 )
             )
 
-        self.driver_controller.axisMagnitudeGreaterThan(4, 0.04).and_(lambda: not self.test_bindings).and_(self.driver_controller.rightTrigger().negate()).whileTrue(
+        self.driver_controller.axisMagnitudeGreaterThan(4, 0.005).and_(lambda: not self.test_bindings).and_(self.driver_controller.rightTrigger().negate()).whileTrue(
             self.drivetrain.apply_request(
                 lambda: (
                     self._drive
@@ -205,6 +206,9 @@ class RobotContainer:
         ).onFalse(
             SequentialCommandGroup(
                 ResetCLT(self.drivetrain),
+                EmergencyRetract(self.intake),
+                WaitCommand(0.5),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper),
                 runOnce(lambda: self.leds.set_state("default"), self.leds)
             )
         )
@@ -214,6 +218,7 @@ class RobotContainer:
             ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "hub")
         ).onFalse(
             SequentialCommandGroup(
+                runOnce(lambda: self.util.toggle_channel(False), self.util),
                 EmergencyRetract(self.intake),
                 WaitCommand(0.5),
                 runOnce(lambda: self.hopper.set_state("off"), self.hopper),
@@ -223,11 +228,14 @@ class RobotContainer:
             ManualLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, "tower")
         ).onFalse(
             SequentialCommandGroup(
+                runOnce(lambda: self.util.toggle_channel(False), self.util),
                 EmergencyRetract(self.intake),
                 WaitCommand(0.5),
                 runOnce(lambda: self.hopper.set_state("off"), self.hopper)
             )
         )
+
+        # Launcher Tuning controls
         self.driver_controller.povLeft().and_(lambda: not self.test_bindings).onTrue(
             runOnce(lambda: self.launcher.live_reconfigure(), self.launcher).ignoringDisable(True)
         )
@@ -268,7 +276,7 @@ class RobotContainer:
         # Stow robot for crossing the BUMP or TRENCH.
         self.driver_controller.a().and_(lambda: not self.test_bindings).onTrue(
             SequentialCommandGroup(
-                SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135)),
+                # SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135)),
                 runOnce(lambda: self.launcher.set_state("safety"), self.launcher),
                 runOnce(lambda: self.climber.set_state("stow"), self.climber),
                 runOnce(lambda: self.leds.set_state("default"), self.leds)
@@ -281,8 +289,13 @@ class RobotContainer:
         )
 
         # Feed button (does not rotate drivetrain at all).
-        self.driver_controller.x().and_(lambda: not self.test_bindings).whileTrue(
-            Feed(self.launcher, self.hopper, self.intake)
+        # self.driver_controller.x().and_(lambda: not self.test_bindings).whileTrue(
+        #     Feed(self.launcher, self.hopper, self.intake)
+        # )
+
+        # Toggle Launcher flashlight on
+        self.driver_controller.x().and_(lambda: not self.test_bindings).onTrue(
+            runOnce(lambda: self.util.toggle_channel(True), self.util)
         )
 
         # Outpost feed button.
@@ -319,10 +332,27 @@ class RobotContainer:
         )
 
         # Reset pose.
+        # self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
+        #     SequentialCommandGroup(
+        #         ParallelRaceGroup(
+        #             runOnce(lambda: self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.25)),
+        #             runOnce(lambda: self.drivetrain.reset_odometry()).ignoringDisable(True)
+        #         ),
+        #         ParallelRaceGroup(
+        #             runOnce(lambda: self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.25)),
+        #             ResetCLT(self.drivetrain).ignoringDisable(True)
+        #         ),
+        #     )
+        # )
+
+        # Reset pose.
         self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
-            SequentialCommandGroup(
-                runOnce(lambda: self.drivetrain.reset_odometry(), self.drivetrain).ignoringDisable(True),
-                ResetCLT(self.drivetrain).ignoringDisable(True)
+            ParallelDeadlineGroup(
+                self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.5),
+                SequentialCommandGroup(
+                    runOnce(lambda: self.drivetrain.reset_odometry()).ignoringDisable(True),
+                    ResetCLT(self.drivetrain).ignoringDisable(True)
+                )
             )
         )
 
@@ -336,6 +366,12 @@ class RobotContainer:
             runOnce(lambda: self.hopper.set_state("launching"), self.hopper)
         ).onFalse(
             runOnce(lambda: self.hopper.set_state("off"), self.hopper)
+        )
+        self.operator_controller.y().onTrue(
+            DebugMode(self._logger, self.intake, self.launcher, self.hopper, True).ignoringDisable(True)
+        )
+        self.operator_controller.x().onTrue(
+            DebugMode(self._logger, self.intake, self.launcher, self.hopper, False).ignoringDisable(True)
         )
 
         # Configuration for telemetry.
@@ -402,11 +438,11 @@ class RobotContainer:
 
     def check_endpoint_closed(self) -> bool:
         return self.drivetrain.endpoint[0] - 0.02 < self.drivetrain.get_pose().x < self.drivetrain.endpoint[
-            0] + 0.02 and self.drivetrain.endpoint[
+            0] + 0.005 and self.drivetrain.endpoint[
             1] - 0.02 < self.drivetrain.get_pose().y < self.drivetrain.endpoint[1] + 0.02
 
     def deadband_controller(self, joystick_input) -> float:
-        if -0.05 < joystick_input < 0.05:
+        if -0.005 < joystick_input < 0.005:
             return 0
         else:
             return joystick_input

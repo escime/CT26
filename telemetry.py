@@ -15,6 +15,7 @@ class Telemetry:
         :type max_speed: units.meters_per_second
         """
         self._max_speed = max_speed
+        self._debug_mode = True
         # SignalLogger.start()
 
         # What to publish over networktables for telemetry
@@ -78,6 +79,9 @@ class Telemetry:
         self._traj_type_pub = self._table.getStringTopic(".type").publish()
         PathPlannerLogging.setLogActivePathCallback(lambda poses: self.traj_field.getObject('path').setPoses(poses))
 
+    def set_debug_mode(self, on: bool) -> None:
+        self._debug_mode = on
+
     def telemeterize(self, state: swerve.SwerveDrivetrain.SwerveDriveState):
         """
         Accept the swerve drive state and telemeterize it to SmartDashboard and SignalLogger.
@@ -103,21 +107,22 @@ class Telemetry:
             module_targets_array.append(state.module_targets[i].angle.radians())
             module_targets_array.append(state.module_targets[i].speed)
 
-        SignalLogger.write_double_array("DriveState/Pose", pose_array)
-        SignalLogger.write_double_array("DriveState/ModuleStates", module_states_array)
-        SignalLogger.write_double_array(
-            "DriveState/ModuleTargets", module_targets_array
-        )
-        SignalLogger.write_double(
-            "DriveState/OdometryPeriod", state.odometry_period, "seconds"
-        )
+        # SignalLogger.write_double_array("DriveState/Pose", pose_array)
+        # SignalLogger.write_double_array("DriveState/ModuleStates", module_states_array)
+        # SignalLogger.write_double_array(
+        #     "DriveState/ModuleTargets", module_targets_array
+        # )
+        # SignalLogger.write_double(
+        #     "DriveState/OdometryPeriod", state.odometry_period, "seconds"
+        # )
 
         # Telemeterize the pose to a Field2d
         self._field_type_pub.set("Field2d")
         self._field_pub.set(pose_array)
 
         # Telemeterize the module states to a Mechanism2d
-        for i, module_state in enumerate(state.module_states):
-            self._module_speeds[i].setAngle(module_state.angle.degrees())
-            self._module_directions[i].setAngle(module_state.angle.degrees())
-            self._module_speeds[i].setLength(module_state.speed / (2 * self._max_speed))
+        if self._debug_mode:
+            for i, module_state in enumerate(state.module_states):
+                self._module_speeds[i].setAngle(module_state.angle.degrees())
+                self._module_directions[i].setAngle(module_state.angle.degrees())
+                self._module_speeds[i].setLength(module_state.speed / (2 * self._max_speed))

@@ -20,6 +20,7 @@ from constants import IntakeConstants
 class IntakeSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
+        self._debug_mode = True
         self._last_sim_time = get_current_time_seconds()
         self.state_values = IntakeConstants.state_values
         self.state = "stow"
@@ -119,6 +120,9 @@ class IntakeSubsystem(Subsystem):
         self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][1]))
         self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
 
+    def set_debug_mode(self, on: bool) -> None:
+        self._debug_mode = on
+
     def get_deployed(self) -> bool:
         if self.intake_deploy.get_position().value_as_double >= IntakeConstants.deployed_amount:
             return True
@@ -147,14 +151,15 @@ class IntakeSubsystem(Subsystem):
         if is_simulation():
             self.update_sim()
 
-        self._intake_table.putNumber("Intake Position", self.intake_deploy.get_position().value_as_double)
-        self._intake_table.putString("Intake State", self.state)
-        self._intake_table.putNumber("Intake Voltage", self.intake_deploy.get_motor_voltage(True).value_as_double)
+        if self._debug_mode:
+            self._intake_table.putNumber("Intake Position", self.intake_deploy.get_position().value_as_double)
+            self._intake_table.putString("Intake State", self.state)
+            self._intake_table.putNumber("Intake Voltage", self.intake_deploy.get_motor_voltage(True).value_as_double)
 
-        if 0 < self.intake_leader.get_motor_voltage().value_as_double < 0:
-            self._intake_table.putBoolean("Intake Rollers On?", True)
-        else:
-            self._intake_table.putBoolean("Intake Rollers On?", False)
+            if 0 < self.intake_leader.get_motor_voltage().value_as_double < 0:
+                self._intake_table.putBoolean("Intake Rollers On?", True)
+            else:
+                self._intake_table.putBoolean("Intake Rollers On?", False)
 
         if self.state == "launching" or self.state == "launching_reverse":
             if get_current_time_seconds() - self._last_launch_cycle > 0.5:

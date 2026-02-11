@@ -27,15 +27,15 @@ class ManualLaunch(Command):
 
     def initialize(self):
         self.launcher.set_state(self.setpoint)
-        # self.intake.set_state("deployed")
+        self.intake.set_state("deployed")
         self._launching_active = False
 
     def execute(self):
-        # self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
+        self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
 
         if self.launcher.get_at_target() and not self._launching_active:
             self.hopper.set_state("launching")
-            # self.intake.set_state("launching")
+            self.intake.set_state("launching")
             self._launching_active = True
 
     def end(self, interrupted: bool):

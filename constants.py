@@ -131,11 +131,11 @@ class VisionConstants:
 
     # Camera 1 Information ---------------------------------------------------------------------------------------------
     cam_1_name = "launcher"
-    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(-8.827717),
-                                              inchesToMeters(-10.1875),
-                                              inchesToMeters(20.666455)),
+    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(-8.90724), # -8.827717
+                                              inchesToMeters(-10.125), # -10.1875
+                                              inchesToMeters(20.92455)), # 20.666455
                                 Rotation3d(degreesToRadians(0),
-                                           degreesToRadians(-25),
+                                           degreesToRadians(-20), # -25
                                            degreesToRadians(0)))
 
     cam1 = photonCamera.PhotonCamera(cam_1_name)
@@ -190,15 +190,15 @@ class LauncherConstants:
                     "safety": 100 / 60,
                     "standby": 500 / 60,
                     "outpost": 1000 / 60,
-                    "tower": 4750 / 60, # 3500
-                    "hub": 3000 / 60,
+                    "tower": 3250 / 60,
+                    "hub": 2900 / 60,
                     "feed": 500 / 60}
     hood_state_values = {"off": 0,
                          "safety": 0,
                          "standby": 0,
                          "outpost": 1,
-                         "tower": 1, # 0.6
-                         "hub": 0.25,
+                         "tower": 0.75,
+                         "hub": 0.375,
                          "feed": 1}
 
     # Setup Values -----------------------------------------------------------------------------------------------------
@@ -227,7 +227,7 @@ class LauncherConstants:
     ks = 0.1
     kv = 0 # 0.1
     ka = 0 # 0.4
-    kp = 5 # 0.5
+    kp = 8 # 0.5
     ki = 0
     kd = 0
     torque_feedforward = 4
@@ -247,19 +247,21 @@ class LauncherConstants:
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
         [0, 0, 2000 / 60],
-        [15, 1, 4000 / 60]
+        [2.5, 0.52, 3250 / 60],
+        [5.06, 0.75, 4200 / 60],
+        [15, 1, 5500 / 60]
     ]
 
 class IntakeConstants:
     # [Intake speed, Deploy power]
     state_values = {"stow": [0, -10],
-                    "retracting": [0, -50],
-                    "intake": [5, 45],
+                    "retracting": [0, -70], #-50
+                    "intake": [5, 50], # 45
                     "intaking": [8, 10],
                     "deployed": [0, 10],
                     "outpost": [-10, 0],
-                    "launching": [3, -20], # -40
-                    "launching_reverse": [3, 20], # 40
+                    "launching": [10, -70], # -40
+                    "launching_reverse": [10, 20], # 40
                     "jam_clear": [-12, 10]
                     }
 
@@ -286,7 +288,7 @@ class HopperConstants:
     state_values = {
         "off": [0, 0, 0],
         "launching": [5, 5, 4000 / 60],
-        "intaking": [-2, -2, 0],
+        "intaking": [2, 2, 0],
         "jam_clear": [-3, -3, -750 / 60]
     }
 

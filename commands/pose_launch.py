@@ -7,7 +7,8 @@ from subsystems.intakesubsystem import IntakeSubsystem
 from subsystems.utilsubsystem import UtilSubsystem
 from phoenix6 import swerve
 from wpimath.geometry import Rotation2d
-from wpilib import DriverStation
+from wpilib import DriverStation, SmartDashboard
+
 
 class PoseLaunch(Command):
     """This is an advanced launch command. It implements shoot on the move using 3D pose tracking."""
@@ -19,8 +20,6 @@ class PoseLaunch(Command):
         self.hopper = hopper
         self.intake = intake
         self.util = util
-
-        self.brake = swerve.requests.SwerveDriveBrake()
 
         self._launching_active = False
         self.adder = 0
@@ -46,6 +45,7 @@ class PoseLaunch(Command):
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.5)))
         self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_with_tof(0.5))
+        SmartDashboard.putNumber("Range to Goal", self.drive.get_auto_lookahead_range_with_tof(0.5))
 
         if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active() and self.get_clt_on_target():
             self.hopper.set_state("launching")
@@ -58,12 +58,12 @@ class PoseLaunch(Command):
         elif self._launching_active and self.util.get_hub_active():
             pass
         else:
-            self._launching_active = False
+            pass
 
     def end(self, interrupted: bool):
         self.launcher.set_state("off")
-        self.hopper.set_state("off")
-        self.intake.set_state("stow")
+        self.hopper.set_state("jam_clear")
+        # self.intake.set_state("stow")
         self.drive.set_3d(False)
         self.drive.set_lookahead(False)
         self.drive.set_auto_slow(False)
