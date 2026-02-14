@@ -62,7 +62,7 @@ class PoseLaunch(Command):
 
     def end(self, interrupted: bool):
         self.launcher.set_state("off")
-        self.hopper.set_state("jam_clear")
+        self.hopper.set_state("off")
         # self.intake.set_state("stow")
         self.drive.set_3d(False)
         self.drive.set_lookahead(False)

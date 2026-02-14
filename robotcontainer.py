@@ -144,8 +144,8 @@ class RobotContainer:
         self.m_chooser = AutoBuilder.buildAutoChooser("DoNothing")
         SmartDashboard.putData("Auto Select", self.m_chooser)
 
-        self.drive_filter_x = SlewRateLimiter(5, -5, 0)
-        self.drive_filter_y = SlewRateLimiter(5, -5, 0)
+        self.drive_filter_x = SlewRateLimiter(3, -3, 0)
+        self.drive_filter_y = SlewRateLimiter(3, -3, 0)
 
     def configure_triggers(self) -> None:
         # DRIVER COMMANDS # ############################################################################################
@@ -164,13 +164,14 @@ class RobotContainer:
                 )
             )
 
+        # Switch to open loop turning while turning is being applied.
         self.driver_controller.axisMagnitudeGreaterThan(4, 0.005).and_(lambda: not self.test_bindings).and_(self.driver_controller.rightTrigger().negate()).whileTrue(
             self.drivetrain.apply_request(
                 lambda: (
                     self._drive
                     .with_velocity_x(self.drive_filter_y.calculate(self.deadband_controller(self.driver_controller.getLeftY())) * -1 * self._max_speed)
                     .with_velocity_y(self.drive_filter_x.calculate(self.deadband_controller(self.driver_controller.getLeftX())) * -1 * self._max_speed)
-                    .with_rotational_rate(self.deadband_controller(self.driver_controller.getRightX()) * -1 * self._max_angular_rate)
+                    .with_rotational_rate(self.driver_controller.getRightX() * -1 * self._max_angular_rate)
                 )
             )
         ).onFalse(
@@ -206,10 +207,10 @@ class RobotContainer:
         ).onFalse(
             SequentialCommandGroup(
                 ResetCLT(self.drivetrain),
+                runOnce(lambda: self.leds.set_state("default"), self.leds),
                 EmergencyRetract(self.intake),
                 WaitCommand(0.5),
-                runOnce(lambda: self.hopper.set_state("off"), self.hopper),
-                runOnce(lambda: self.leds.set_state("default"), self.leds)
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper)
             )
         )
 
@@ -277,7 +278,7 @@ class RobotContainer:
         self.driver_controller.a().and_(lambda: not self.test_bindings).onTrue(
             SequentialCommandGroup(
                 # SetCLTTarget(self.drivetrain, Rotation2d.fromDegrees(135)),
-                runOnce(lambda: self.launcher.set_state("safety"), self.launcher),
+                runOnce(lambda: self.launcher.set_state("off"), self.launcher),
                 runOnce(lambda: self.climber.set_state("stow"), self.climber),
                 runOnce(lambda: self.leds.set_state("default"), self.leds)
             )
@@ -332,23 +333,9 @@ class RobotContainer:
         )
 
         # Reset pose.
-        # self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
-        #     SequentialCommandGroup(
-        #         ParallelRaceGroup(
-        #             runOnce(lambda: self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.25)),
-        #             runOnce(lambda: self.drivetrain.reset_odometry()).ignoringDisable(True)
-        #         ),
-        #         ParallelRaceGroup(
-        #             runOnce(lambda: self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.25)),
-        #             ResetCLT(self.drivetrain).ignoringDisable(True)
-        #         ),
-        #     )
-        # )
-
-        # Reset pose.
         self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
             ParallelDeadlineGroup(
-                self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.5),
+                self.drivetrain.apply_request(lambda: self._drive.with_velocity_x(0).with_velocity_y(0).with_rotational_rate(0)).withTimeout(0.5),
                 SequentialCommandGroup(
                     runOnce(lambda: self.drivetrain.reset_odometry()).ignoringDisable(True),
                     ResetCLT(self.drivetrain).ignoringDisable(True)
@@ -357,16 +344,6 @@ class RobotContainer:
         )
 
         # OPERATOR COMMANDS # ##########################################################################################
-        self.operator_controller.a().onTrue(
-            runOnce(lambda: self.launcher.set_state("standby"), self.launcher)
-        ).onFalse(
-            runOnce(lambda: self.launcher.set_state("off"), self.launcher)
-        )
-        self.operator_controller.b().onTrue(
-            runOnce(lambda: self.hopper.set_state("launching"), self.hopper)
-        ).onFalse(
-            runOnce(lambda: self.hopper.set_state("off"), self.hopper)
-        )
         self.operator_controller.y().onTrue(
             DebugMode(self._logger, self.intake, self.launcher, self.hopper, True).ignoringDisable(True)
         )
@@ -438,7 +415,7 @@ class RobotContainer:
 
     def check_endpoint_closed(self) -> bool:
         return self.drivetrain.endpoint[0] - 0.02 < self.drivetrain.get_pose().x < self.drivetrain.endpoint[
-            0] + 0.005 and self.drivetrain.endpoint[
+            0] + 0.02 and self.drivetrain.endpoint[
             1] - 0.02 < self.drivetrain.get_pose().y < self.drivetrain.endpoint[1] + 0.02
 
     def deadband_controller(self, joystick_input) -> float:
@@ -448,40 +425,6 @@ class RobotContainer:
             return joystick_input
 
     def registerCommands(self):
-        # NamedCommands.registerCommand("rainbow_leds", runOnce(lambda: self.leds.set_state("rainbow"),
-        #                                                       self.leds))
-        # NamedCommands.registerCommand("flash_green",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([255, 0, 0]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_red",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([0, 255, 0]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_blue",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([0, 0, 255]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_purple",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([50, 149, 168]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("flash_yellow",
-        #                               SequentialCommandGroup(
-        #                                   runOnce(lambda: self.leds.set_flash_color_color([255, 255, 0]),
-        #                                           self.leds),
-        #                                   runOnce(lambda: self.leds.set_flash_color_rate(2), self.leds),
-        #                                   runOnce(lambda: self.leds.set_state("flash_color"), self.leds)))
-        # NamedCommands.registerCommand("default_leds", runOnce(lambda: self.leds.set_state("default"),
-        #                                                       self.leds))
         NamedCommands.registerCommand("baseline", Baseline(self.drivetrain, self.timer))
         NamedCommands.registerCommand("check_drivetrain", CheckDrivetrain(self.drivetrain, self.timer))
         NamedCommands.registerCommand("override_heading_goal",
@@ -517,3 +460,8 @@ class RobotContainer:
             ResetCLT(self.drivetrain)
             )
         )
+        NamedCommands.registerCommand("close_to_tower",
+                                      SequentialCommandGroup(
+                                          PathfollowingEndpointClose(self.drivetrain, [1.075, 2.832, 180]),
+                                          self.drivetrain.apply_request(self.drivetrain.saved_request)
+                                      ).onlyWhile(lambda: self.check_endpoint_closed()))

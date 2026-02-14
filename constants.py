@@ -163,12 +163,12 @@ class VisionConstants:
     )
 
     # Camera 3 Information ---------------------------------------------------------------------------------------------
-    cam_3_name = "back_left"
-    robot_to_cam3 = Transform3d(Translation3d(inchesToMeters(-11.124557),
-                                              inchesToMeters(10.340702),
-                                              inchesToMeters(9.208135)),
+    cam_3_name = "Arducam_OV9281_USB_Camera"
+    robot_to_cam3 = Transform3d(Translation3d(inchesToMeters(-11.922283),
+                                              inchesToMeters(9.89851),
+                                              inchesToMeters(12.70455)),
                                 Rotation3d(degreesToRadians(0),
-                                           degreesToRadians(-20),
+                                           degreesToRadians(0),
                                            degreesToRadians(-30 + 180)))
 
     cam3 = photonCamera.PhotonCamera(cam_3_name)
@@ -179,8 +179,8 @@ class VisionConstants:
     )
 
     # Camera Lists -----------------------------------------------------------------------------------------------------
-    robot_cameras_3d = [cam1]
-    robot_cameras_poses_3d = [cam1_pose]
+    robot_cameras_3d = [cam1, cam3]
+    robot_cameras_poses_3d = [cam1_pose, cam3_pose]
     robot_cameras_2d = [cam1]
     robot_cameras_2d_height = robot_to_cam1.z
     robot_cameras_2d_angle = abs(robot_to_cam1.rotation().y_degrees)
@@ -191,7 +191,7 @@ class LauncherConstants:
                     "standby": 500 / 60,
                     "outpost": 1000 / 60,
                     "tower": 3250 / 60,
-                    "hub": 2900 / 60,
+                    "hub": 2800 / 60,
                     "feed": 500 / 60}
     hood_state_values = {"off": 0,
                          "safety": 0,
@@ -247,22 +247,33 @@ class LauncherConstants:
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
         [0, 0, 2000 / 60],
-        [2.5, 0.52, 3250 / 60],
-        [5.06, 0.75, 4200 / 60],
+        [2.5, 0.52, 3100 / 60],
+        [5.06, 0.75, 4100 / 60],
         [15, 1, 5500 / 60]
     ]
 
 class IntakeConstants:
     # [Intake speed, Deploy power]
-    state_values = {"stow": [0, -10],
-                    "retracting": [0, -70], #-50
-                    "intake": [5, 50], # 45
-                    "intaking": [8, 10],
-                    "deployed": [0, 10],
-                    "outpost": [-10, 0],
-                    "launching": [10, -70], # -40
-                    "launching_reverse": [10, 20], # 40
-                    "jam_clear": [-12, 10]
+    # state_values = {"stow": [0, -10],
+    #                 "retracting": [0, -70],
+    #                 "intake": [5, 50],
+    #                 "intaking": [8, 10],
+    #                 "deployed": [0, 10],
+    #                 "outpost": [-10, 0],
+    #                 "launching": [10, -70],
+    #                 "launching_reverse": [10, 20],
+    #                 "jam_clear": [-12, 10]
+    #                 }
+
+    state_values = {"stow": [0, -2],
+                    "retracting": [0, -30],
+                    "intake": [5, 30],
+                    "intaking": [12, 5],
+                    "deployed": [0, 5],
+                    "outpost": [-12, 0],
+                    "launching": [8, -30],
+                    "launching_reverse": [8, 10],
+                    "jam_clear": [-12, 20]
                     }
 
     intake_leader_can_id = 40
@@ -276,7 +287,7 @@ class IntakeConstants:
     max_duty_cycle = 0.75
     intake_deploy_stator_current_limit = 120
     intake_deploy_supply_current_limit = 40
-    intake_deploy_gear_ratio = 20
+    intake_deploy_gear_ratio = 20 * 3
     intake_deploy_peak_forward_current = 60
     intake_deploy_peak_reverse_current = -60
 
@@ -287,8 +298,8 @@ class HopperConstants:
     # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
     state_values = {
         "off": [0, 0, 0],
-        "launching": [5, 5, 4000 / 60],
-        "intaking": [2, 2, 0],
+        "launching": [8, 8, 4500 / 60],
+        "intaking": [-1, -1, -300 / 60],
         "jam_clear": [-3, -3, -750 / 60]
     }
 

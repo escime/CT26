@@ -31,7 +31,7 @@ class ClimberSubsystem(Subsystem):
         self._servo = Servo(ClimberConstants.servo_port)
 
         # Climber Setup -------------------------------------------------------------------------------------------------
-        # self.climber = TalonFX(ClimberConstants.climber_can_id, CANBus("rio"))
+        self.climber = TalonFX(ClimberConstants.climber_can_id, CANBus("rio"))
 
         self.climber_volts = VoltageOut(0, True)
 
@@ -44,15 +44,15 @@ class ClimberSubsystem(Subsystem):
         climber_configs.feedback.sensor_to_mechanism_ratio = ClimberConstants.gear_ratio
         climber_configs.motor_output.inverted = ClimberConstants.direction
 
-        # status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
-        # for _ in range(0, 5):
-        #     status = self.climber.configurator.apply(climber_configs)
-        #     if status.is_ok():
-        #         break
-        # if not status.is_ok():
-        #     print(f"Could not apply configs, error code: {status.name}")
-        #
-        # self.climber.set_position(0)
+        status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        for _ in range(0, 5):
+            status = self.climber.configurator.apply(climber_configs)
+            if status.is_ok():
+                break
+        if not status.is_ok():
+            print(f"Could not apply configs, error code: {status.name}")
+
+        self.climber.set_position(0)
 
         # Other Setup --------------------------------------------------------------------------------------------------
         self.last_time = get_current_time_seconds()
@@ -60,32 +60,32 @@ class ClimberSubsystem(Subsystem):
     def set_state(self, state: str) -> None:
         self.state = state
         self._servo.set(self.state_values[state][1])
-        # self.climber.set_control(self.climber_volts
-        #                          .with_output(self.state_values[state][0])
-        #                          .with_limit_forward_motion(self.get_upper_limit())
-        #                          .with_limit_reverse_motion(self.get_lower_limit()))
+        self.climber.set_control(self.climber_volts
+                                 .with_output(self.state_values[state][0])
+                                 .with_limit_forward_motion(self.get_upper_limit())
+                                 .with_limit_reverse_motion(self.get_lower_limit()))
 
     def get_state(self) -> str:
         return self.state
 
     def get_upper_limit(self) -> bool:
-        # if self.climber.get_position().value_as_double >= ClimberConstants.deployed_position:
-        #     return True
-        # else:
-        #     return False
+        if self.climber.get_position().value_as_double >= ClimberConstants.deployed_position:
+            return True
+        else:
+            return False
         return False
 
     def get_lower_limit(self) -> bool:
-        # if self.state == "climb":
-        #     if self.climber.get_position().value_as_double <= ClimberConstants.climbed_position:
-        #         return True
-        #     else:
-        #         return False
-        # else:
-        #     if self.climber.get_position().value_as_double <= ClimberConstants.stowed_position:
-        #         return True
-        #     else:
-        #         return False
+        if self.state == "climb":
+            if self.climber.get_position().value_as_double <= ClimberConstants.climbed_position:
+                return True
+            else:
+                return False
+        else:
+            if self.climber.get_position().value_as_double <= ClimberConstants.stowed_position:
+                return True
+            else:
+                return False
         return False
 
     def get_range_back(self) -> float:
@@ -97,5 +97,5 @@ class ClimberSubsystem(Subsystem):
         return 0
 
     def periodic(self) -> None:
-        # self._climber_table.putNumber("Climber Position", self.climber.get_position().value_as_double)
+        self._climber_table.putNumber("Climber Position", self.climber.get_position().value_as_double)
         self._climber_table.putString("Climber State", self.get_state())

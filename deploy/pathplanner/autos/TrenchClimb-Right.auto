@@ -49,6 +49,12 @@
         {
           "type": "named",
           "data": {
+            "name": "close_to_tower"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
             "name": "climb"
           }
         },
