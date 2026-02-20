@@ -27,8 +27,6 @@ class Feed(Command):
         if self.launcher.get_at_target() and not self._launching_active:
             self.hopper.set_state("launching")
             self.intake.set_state("launching")
-        else:
-            self._launching_active = False
 
     def end(self, interrupted: bool):
         self.launcher.set_state("off")

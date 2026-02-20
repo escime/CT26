@@ -187,6 +187,12 @@ class UtilSubsystem(Subsystem):
         else:
             return current_time
 
+    def get_inactive_warning(self, time: float) -> bool:
+        if self.get_hub_active() and self.get_shift_time_remaining() <= time:
+            return True
+        else:
+            return False
+
 
     def periodic(self) -> None:
         self._table.putNumber("Match Timer", DriverStation.getMatchTime())

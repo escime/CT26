@@ -11,6 +11,9 @@ class IntakeAuto(Command):
         self._intake = intake
         self._hopper = hopper
 
+        self.addRequirements(intake)
+        self.addRequirements(hopper)
+
     def initialize(self):
         self._intake.set_state("intake")
         self._hopper.set_state("intaking")

@@ -12,7 +12,7 @@ from wpilib import DriverStation, Notifier, RobotController, Alert
 from wpilib.sysid import SysIdRoutineLog
 from wpimath.geometry import Rotation2d, Pose2d, Transform3d, Translation3d, Rotation3d
 from wpimath.units import degreesToRadians, inchesToMeters, metersToInches
-from wpimath.controller import ProfiledPIDController
+from wpimath.controller import ProfiledPIDController, PIDController
 from wpimath.trajectory import TrapezoidProfile
 from ntcore import NetworkTableInstance
 from numpy import interp
@@ -190,7 +190,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             .with_drive_request_type(swerve.SwerveModule.DriveRequestType.VELOCITY)
             .with_desaturate_wheel_speeds(True)
         )
-        self.clt_request.heading_controller.setPID(5, 0.001, 0)
+        self.clt_request.heading_controller.setPID(6, 0.001, 0) # kp was 5
         self.clt_request.heading_controller.enableContinuousInput(0, -2 * math.pi)
         self.clt_request.heading_controller.setTolerance(1)
         self.re_entered_clt = True
@@ -298,7 +298,15 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             .with_velocity_y(0)
             .with_velocity_x(0)
         )
+
+        self.thc = PIDController(0.5, 0, 0)
+
         self.brake_request = swerve.requests.SwerveDriveBrake()
+
+        self.slow_mode_application = 1
+        self.slow_mode_turning_application = 1
+
+        self._debug_mode = False
 
         if utils.is_simulation():
            # alert_photonvision_enabled.set(True)
@@ -352,7 +360,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         # Update PhotonVision cameras in real-life scenarios.
         if self.photon_cam_array_3d[0].isConnected() and not utils.is_simulation():
             # if self.mode_3d:
-            self.select_best_vision_pose((0.2, 0.2, 9999999999999999999))
+            self.select_best_vision_pose((0.1, 0.1, 1))
             # else:
             #     self.update_2d_solution()
             #     self._vision_table.putNumber("Target Yaw", self.target_yaw)
@@ -409,6 +417,8 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         return ((VisionConstants.target_height - VisionConstants.robot_cameras_2d_height) /
                 math.tan(degreesToRadians(VisionConstants.robot_cameras_2d_angle + target_offset_angle)))
 
+    def set_debug_mode(self, on: bool) -> None:
+        self._debug_mode = on
 
     def select_best_vision_pose(self, stddevs: (float, float, float)) -> None:
         for i in range(0, len(self.photon_cam_array_3d)):
@@ -419,24 +429,31 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
                     pose_result = pose_estimate.estimatedPose
                     if pose_result is not None:
                         if 0 < pose_result.x < 17.658 and 0 < pose_result.y < 8.131 and -0.03 <= pose_result.z <= 0.03:
-                            self._vision_table.putBoolean("Accepted New Pose?", True)
+                            if self._debug_mode:
+                                self._vision_table.putBoolean("Accepted New Pose?", True)
+                                # TODO implement heading rechecking
+                                self._vision_table.putNumber("Pose Ambiguity",
+                                                             result.getBestTarget().getPoseAmbiguity())
                             self.tag_seen = True
-
                             self.add_vision_measurement(pose_result.toPose2d(),
                                                         utils.fpga_to_current_time(pose_estimate.timestampSeconds),
                                                         stddevs)
 
                         else:
-                            self._vision_table.putBoolean("Accepted New Pose?", False)
+                            if self._debug_mode:
+                                self._vision_table.putBoolean("Accepted New Pose?", False)
                             self.tag_seen = False
                     else:
-                        self._vision_table.putBoolean("Accepted New Pose?", False)
+                        if self._debug_mode:
+                            self._vision_table.putBoolean("Accepted New Pose?", False)
                         self.tag_seen = False
                 else:
-                    self._vision_table.putBoolean("Accepted New Pose?", False)
+                    if self._debug_mode:
+                        self._vision_table.putBoolean("Accepted New Pose?", False)
                     self.tag_seen = False
             else:
-                self._vision_table.putBoolean("Accepted New Pose?", False)
+                if self._debug_mode:
+                    self._vision_table.putBoolean("Accepted New Pose?", False)
                 self.tag_seen = False
 
 
@@ -644,6 +661,13 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         else:
             return self.get_auto_lookahead_heading(VisionConstants.blue_hub_center, time_compensation) + 180
 
+    def get_goal_alignment_heading_with_tof(self, time_compensation: float) -> float:
+        """Returns the required target heading to point at a goal."""
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            return self.get_auto_lookahead_heading_with_tof(VisionConstants.red_hub_center, time_compensation) + 180
+        else:
+            return self.get_auto_lookahead_heading_with_tof(VisionConstants.blue_hub_center, time_compensation) + 180
+
     def set_pathplanner_rotation_override(self, override: str) -> None:
         """Sets whether pathplanner uses an alternate heading controller."""
         self.pathplanner_rotation_overridden = override
@@ -659,6 +683,35 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         adjusted_pose = Pose2d(current_pose.x + self.vx_new * time_compensation,
                                current_pose.y + self.vy_new * time_compensation,
                                current_pose.rotation() + Rotation2d(self.omega_new * time_compensation))
+        return math.atan2(target[1] - adjusted_pose.y, target[0] - adjusted_pose.x) * 180 / math.pi
+
+    def get_auto_lookahead_heading_with_tof(self, target: [float, float], time_compensation: float) -> float:
+        """This function is intended to be a "second order" use of the range to goal function that additionally
+        integrates measured Time-of-Flight."""
+        red = False
+        current_pose = self.get_pose()
+        adjusted_pose = Pose2d(current_pose.x + self.vx_new * time_compensation,
+                               current_pose.y + self.vy_new * time_compensation,
+                               current_pose.rotation() + Rotation2d(self.omega_new * time_compensation))
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            ract = math.sqrt(math.pow(adjusted_pose.x - VisionConstants.red_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.red_hub_center[1], 2))
+            red = True
+        else:
+            ract = math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_hub_center[0], 2) +
+                             math.pow(adjusted_pose.y - VisionConstants.blue_hub_center[1], 2))
+        adjusted_pose = Pose2d(current_pose.x +
+                               self.vx_new * (time_compensation + interp(ract,
+                                                                         VisionConstants.range_tof_table,
+                                                                         VisionConstants.time_tof_table)),
+                               current_pose.y +
+                               self.vy_new * (time_compensation + interp(ract,
+                                                                         VisionConstants.range_tof_table,
+                                                                         VisionConstants.time_tof_table)),
+                               current_pose.rotation() +
+                               Rotation2d(self.omega_new * (time_compensation + interp(ract,
+                                                                                       VisionConstants.range_tof_table,
+                                                                                       VisionConstants.time_tof_table))))
         return math.atan2(target[1] - adjusted_pose.y, target[0] - adjusted_pose.x) * 180 / math.pi
 
     def get_auto_lookahead_range_to_goal(self, time_compensation: float) -> float:
@@ -748,8 +801,8 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             self.target_direction = Rotation2d(self.target_direction.radians() + turn_amount * degreesToRadians(3))
 
         if self.auto_slow:
-            x_speed = x_speed * 0.5
-            y_speed = y_speed * 0.5
+            x_speed = x_speed * 0.35
+            y_speed = y_speed * 0.35
 
         return (self.clt_request
                 .with_velocity_x(x_speed)
@@ -772,6 +825,59 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
 
     def reset_profiled_rotation(self) -> None:
         self.ptttc.reset(0)
+
+    def set_slow_mode(self, translation: float, rotation: float) -> None:
+        self.slow_mode_application = translation
+        self.slow_mode_turning_application = rotation
+
+    def translation_constraint(self, x_min: float, x_max: float, y_min: float, y_max: float, x_speed: float,
+                               y_speed: float) -> swerve.requests:
+        pose = self.get_pose()
+        x_speed_modified = 0
+        y_speed_modified = 0
+
+        if x_min < pose.x < x_max:
+            x_speed_modified = x_speed
+        elif pose.x < x_min:
+            if x_speed >= 0:
+                x_speed_modified = 0
+            else:
+                x_speed_modified = x_speed
+        elif pose.x > x_max:
+            if x_speed < 0:
+                x_speed_modified = 0
+            else:
+                x_speed_modified = x_speed
+
+        if y_min < pose.y < y_max:
+            y_speed_modified = y_speed
+        elif pose.y < y_min:
+            if y_speed > 0:
+                y_speed_modified = -0.1 * 5.12
+            else:
+                y_speed_modified = y_speed
+        elif pose.y > y_max:
+            if y_speed < 0:
+                y_speed_modified = 0.1 * 5.12
+            else:
+                y_speed_modified = y_speed
+
+        return self.drive_clt(x_speed_modified, y_speed_modified, 0)
+
+    def translation_hold(self, x_speed: float) -> swerve.requests:
+        pose = self.get_pose()
+
+        if pose.y > 4.023:
+            target = 7.35
+        else:
+            target = 0.6
+
+        y_output = self.thc.calculate(target, pose.y)
+
+        if DriverStation.getAlliance() == DriverStation.Alliance.kBlue:
+            y_output = -1 * y_output
+
+        return self.drive_clt(x_speed, y_output * 5.12, 0)
 
 
 class ResetCLT(Command):
@@ -812,6 +918,24 @@ class SetCLTTarget(Command):
             self.drive.set_clt_target_direction(self.target)
         else:
             self.drive.set_clt_target_direction(self.target + Rotation2d.fromDegrees(180))
+
+    def isFinished(self) -> bool:
+        return True
+
+
+class SmartSetTargetDirection(Command):
+    def __init__(self, drive: CommandSwerveDrivetrain):
+        super().__init__()
+        self.drive = drive
+
+    def initialize(self):
+        pose = self.drive.get_pose()
+        if -90 < pose.rotation().degrees() < 90:
+            target = 180
+        else:
+            target = 0
+
+        self.drive.set_clt_target_direction(Rotation2d.fromDegrees(target))
 
     def isFinished(self) -> bool:
         return True

@@ -43,9 +43,9 @@ class PoseLaunch(Command):
             self.adder = 180
 
     def execute(self):
-        self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.5)))
-        self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_with_tof(0.5))
-        SmartDashboard.putNumber("Range to Goal", self.drive.get_auto_lookahead_range_with_tof(0.5))
+        self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading_with_tof(0.25)))
+        self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_with_tof(0.25))
+        SmartDashboard.putNumber("Range to Goal", self.drive.get_auto_lookahead_range_with_tof(0.25))
 
         if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active() and self.get_clt_on_target():
             self.hopper.set_state("launching")

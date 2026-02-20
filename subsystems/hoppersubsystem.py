@@ -1,7 +1,7 @@
 from commands2 import Subsystem
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, TorqueCurrentFOC, VelocityVoltage
+from phoenix6.controls import VoltageOut, VelocityTorqueCurrentFOC, VelocityVoltage
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
 from phoenix6.signals import MotorAlignmentValue, NeutralModeValue
@@ -20,7 +20,7 @@ from constants import HopperConstants
 class HopperSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
-        self._debug_mode = True
+        self._debug_mode = False
         self._last_sim_time = get_current_time_seconds()
         self.state_values = HopperConstants.state_values
         self.state = "off"
@@ -82,6 +82,9 @@ class HopperSubsystem(Subsystem):
         feeder_pid_configs.k_d = HopperConstants.kd
 
         self.feeder_vel = VelocityVoltage(0)
+        self.feeder_tvfoc = VelocityTorqueCurrentFOC(velocity=0,
+                                                     feed_forward=HopperConstants.torque_feedforward,
+                                                     slot=0)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
@@ -98,6 +101,7 @@ class HopperSubsystem(Subsystem):
         self.state = state
         self.left_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][1]))
         self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][0]))
+        # self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
         self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
 
     def get_state(self) -> str:
@@ -116,3 +120,5 @@ class HopperSubsystem(Subsystem):
         #     self.update_sim()
         if self._debug_mode:
             self._hopper_table.putString("Hopper State", self.get_state())
+            self._hopper_table.putNumber("Feeder Velocity", self.feeder.get_velocity().value_as_double)
+            self._hopper_table.putNumber("Feeder Target Velocity", self.state_values[self.state][2])

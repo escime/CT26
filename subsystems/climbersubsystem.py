@@ -16,6 +16,7 @@ from constants import ClimberConstants
 class ClimberSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
+        self._debug_mode = False
         self._last_sim_time = get_current_time_seconds()
         self.state_values = ClimberConstants.state_values
         self.state = "stow"
@@ -43,6 +44,7 @@ class ClimberSubsystem(Subsystem):
         climber_configs.current_limits.supply_current_limit_enable = True
         climber_configs.feedback.sensor_to_mechanism_ratio = ClimberConstants.gear_ratio
         climber_configs.motor_output.inverted = ClimberConstants.direction
+        climber_configs.motor_output.neutral_mode = climber_configs.motor_output.neutral_mode.BRAKE
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
@@ -65,6 +67,10 @@ class ClimberSubsystem(Subsystem):
                                  .with_limit_forward_motion(self.get_upper_limit())
                                  .with_limit_reverse_motion(self.get_lower_limit()))
 
+    def manual_control(self, axis: float) -> None:
+        self.state = "manual"
+        self.climber.set_control(self.climber_volts.with_output(12 * axis))
+
     def get_state(self) -> str:
         return self.state
 
@@ -73,7 +79,6 @@ class ClimberSubsystem(Subsystem):
             return True
         else:
             return False
-        return False
 
     def get_lower_limit(self) -> bool:
         if self.state == "climb":
@@ -86,7 +91,6 @@ class ClimberSubsystem(Subsystem):
                 return True
             else:
                 return False
-        return False
 
     def get_range_back(self) -> float:
         # return self._range_back.get_distance().value_as_double
@@ -96,6 +100,10 @@ class ClimberSubsystem(Subsystem):
         # return self._range_front.get_distance().value_as_double
         return 0
 
+    def set_debug_mode(self, on: bool) -> None:
+        self._debug_mode = on
+
     def periodic(self) -> None:
-        self._climber_table.putNumber("Climber Position", self.climber.get_position().value_as_double)
-        self._climber_table.putString("Climber State", self.get_state())
+        if self._debug_mode:
+            self._climber_table.putNumber("Climber Position", self.climber.get_position().value_as_double)
+            self._climber_table.putString("Climber State", self.get_state())

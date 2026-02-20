@@ -20,7 +20,7 @@ from constants import IntakeConstants
 class IntakeSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
-        self._debug_mode = True
+        self._debug_mode = False
         self._last_sim_time = get_current_time_seconds()
         self.state_values = IntakeConstants.state_values
         self.state = "stow"
@@ -30,7 +30,7 @@ class IntakeSubsystem(Subsystem):
 
         # Intake Setup -----------------------------------------------------------------------------------------------
         self.intake_leader = TalonFX(IntakeConstants.intake_leader_can_id, CANBus("rio"))
-        # self.intake_follower = TalonFX(IntakeConstants.intake_follower_can_id, CANBus("rio"))
+        self.intake_follower = TalonFX(IntakeConstants.intake_follower_can_id, CANBus("rio"))
 
         self.intake_volts = VoltageOut(0, True)
 
@@ -44,18 +44,18 @@ class IntakeSubsystem(Subsystem):
         intake_configs.motor_output.inverted = IntakeConstants.direction
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
-        # status_2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        status_2: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
             status = self.intake_leader.configurator.apply(intake_configs)
-            # status_2 = self.intake_follower.configurator.apply(intake_configs)
-            # if status.is_ok() and status_2.is_ok():
-            if status.is_ok():
+            status_2 = self.intake_follower.configurator.apply(intake_configs)
+            if status.is_ok() and status_2.is_ok():
+            # if status.is_ok():
                 break
-        # if not status.is_ok() or not status_2.is_ok():
-        if not status.is_ok():
+        if not status.is_ok() or not status_2.is_ok():
+        # if not status.is_ok():
             print(f"Could not apply configs, error code: {status.name}")
 
-        # self.intake_follower.set_control(Follower(IntakeConstants.intake_leader_can_id, MotorAlignmentValue.OPPOSED))
+        self.intake_follower.set_control(Follower(IntakeConstants.intake_leader_can_id, MotorAlignmentValue.OPPOSED))
 
         # Intake Deploy Setup ------------------------------------------------------------------------------------------
         self.intake_deploy = TalonFX(IntakeConstants.intake_deploy_can_id, CANBus("rio"))

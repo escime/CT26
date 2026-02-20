@@ -63,8 +63,8 @@ class VisionConstants:
     red_hub_center = [11.915, 4.035]
     blue_hub_center = [4.630, 4.035]
 
-    range_tof_table = [0, 100] # meters
-    time_tof_table = [0, 50] # seconds
+    range_tof_table = [0, 2.5, 5, 50] # meters
+    time_tof_table = [0, 1.25, 2, 10] # seconds
 
     tag_names = {
         "red": {
@@ -254,25 +254,14 @@ class LauncherConstants:
 
 class IntakeConstants:
     # [Intake speed, Deploy power]
-    # state_values = {"stow": [0, -10],
-    #                 "retracting": [0, -70],
-    #                 "intake": [5, 50],
-    #                 "intaking": [8, 10],
-    #                 "deployed": [0, 10],
-    #                 "outpost": [-10, 0],
-    #                 "launching": [10, -70],
-    #                 "launching_reverse": [10, 20],
-    #                 "jam_clear": [-12, 10]
-    #                 }
-
     state_values = {"stow": [0, -2],
                     "retracting": [0, -30],
-                    "intake": [5, 30],
+                    "intake": [5, 35],
                     "intaking": [12, 5],
                     "deployed": [0, 5],
                     "outpost": [-12, 0],
-                    "launching": [8, -30],
-                    "launching_reverse": [8, 10],
+                    "launching": [8, -30], # -35
+                    "launching_reverse": [8, -5], # 10
                     "jam_clear": [-12, 20]
                     }
 
@@ -298,9 +287,9 @@ class HopperConstants:
     # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
     state_values = {
         "off": [0, 0, 0],
-        "launching": [8, 8, 4500 / 60],
-        "intaking": [-1, -1, -300 / 60],
-        "jam_clear": [-3, -3, -750 / 60]
+        "launching": [7, 7, 3500 / 60],
+        "intaking": [0, 0, 0 / 60], # -1, -1, -300
+        "jam_clear": [-8, -8, -750 / 60]
     }
 
     right_indexer_can_id = 50
@@ -310,12 +299,13 @@ class HopperConstants:
     indexer_gear_ratio = 4
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
     direction_2 = InvertedValue.CLOCKWISE_POSITIVE
+    torque_feedforward = 7
 
     feeder_direction = InvertedValue.CLOCKWISE_POSITIVE
     feeder_can_id = 52
     feeder_gear_ratio = 1
 
-    kp = 0.2
+    kp = 0.2 # 0.2
     ki = 0
     kd = 0
 
@@ -323,9 +313,9 @@ class HopperConstants:
 class ClimberConstants:
     # voltage, position
     state_values = {
-        "stow": [-12, 0],
-        "deployed": [12, 0],
-        "climb": [-12, 1]
+        "stow": [-3, 0],
+        "deployed": [3, 0],
+        "climb": [-3, 1]
     }
 
     climber_can_id = 60
@@ -339,8 +329,8 @@ class ClimberConstants:
     stator_current_limit = 120
     supply_current_limit = 40
     gear_ratio = 1
-    direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
+    direction = InvertedValue.CLOCKWISE_POSITIVE
 
-    deployed_position = 1
+    deployed_position = 22
     stowed_position = 0
-    climbed_position = 0.5
+    climbed_position = 15

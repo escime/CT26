@@ -24,7 +24,7 @@ from constants import LauncherConstants
 class LauncherSubsystem(Subsystem):
     def __init__(self):
         super().__init__()
-        self._debug_mode = True
+        self._debug_mode = False
         self._last_sim_time = get_current_time_seconds()
         self.state_values = LauncherConstants.state_values
         self.hood_state_values = LauncherConstants.hood_state_values
