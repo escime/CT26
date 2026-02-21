@@ -21,10 +21,7 @@ class AutoEndLaunch(Command):
 
     def initialize(self):
         self.launcher.set_state("off")
-        self.drive.set_3d(True)
-        self.drive.set_lookahead(False)
-        self.intake.set_state("stow")
-        self.hopper.set_state("off")
+        self.hopper.set_state("jam_clear")
 
     def isFinished(self) -> bool:
         return True

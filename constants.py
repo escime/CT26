@@ -247,8 +247,8 @@ class LauncherConstants:
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
         [0, 0, 2000 / 60],
-        [2.5, 0.52, 3100 / 60],
-        [5.06, 0.75, 4100 / 60],
+        [2.5, 0.52, 3200 / 60],
+        [5.06, 0.75, 4200 / 60],
         [15, 1, 5500 / 60]
     ]
 
@@ -260,9 +260,9 @@ class IntakeConstants:
                     "intaking": [12, 5],
                     "deployed": [0, 5],
                     "outpost": [-12, 0],
-                    "launching": [8, -30], # -35
+                    "launching": [8, -40], # -35
                     "launching_reverse": [8, -5], # 10
-                    "jam_clear": [-12, 20]
+                    "jam_clear": [1, 10]
                     }
 
     intake_leader_can_id = 40

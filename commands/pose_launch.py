@@ -24,6 +24,8 @@ class PoseLaunch(Command):
         self._launching_active = False
         self.adder = 0
 
+        self.brake = swerve.requests.SwerveDriveBrake()
+
         self.addRequirements(launcher)
         self.addRequirements(hopper)
         self.addRequirements(intake)
@@ -45,11 +47,12 @@ class PoseLaunch(Command):
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading_with_tof(0.25)))
         self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_with_tof(0.25))
-        SmartDashboard.putNumber("Range to Goal", self.drive.get_auto_lookahead_range_with_tof(0.25))
+        # SmartDashboard.putNumber("Range to Goal", self.drive.get_auto_lookahead_range_with_tof(0.25))
 
         if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active() and self.get_clt_on_target():
             self.hopper.set_state("launching")
             self.intake.set_state("launching")
+            self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
             self._launching_active = True
         elif self._launching_active and not self.util.get_hub_active():
             self.hopper.set_state("off")
@@ -62,7 +65,7 @@ class PoseLaunch(Command):
 
     def end(self, interrupted: bool):
         self.launcher.set_state("off")
-        self.hopper.set_state("off")
+        self.hopper.set_state("jam_clear")
         # self.intake.set_state("stow")
         self.drive.set_3d(False)
         self.drive.set_lookahead(False)

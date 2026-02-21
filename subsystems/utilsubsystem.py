@@ -188,7 +188,7 @@ class UtilSubsystem(Subsystem):
             return current_time
 
     def get_inactive_warning(self, time: float) -> bool:
-        if self.get_hub_active() and self.get_shift_time_remaining() <= time:
+        if self.get_hub_active() and self.get_shift_time_remaining() <= time and self.get_shift_time_remaining() != -1:
             return True
         else:
             return False

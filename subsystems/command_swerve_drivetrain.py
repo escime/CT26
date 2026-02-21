@@ -431,9 +431,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
                         if 0 < pose_result.x < 17.658 and 0 < pose_result.y < 8.131 and -0.03 <= pose_result.z <= 0.03:
                             if self._debug_mode:
                                 self._vision_table.putBoolean("Accepted New Pose?", True)
-                                # TODO implement heading rechecking
-                                self._vision_table.putNumber("Pose Ambiguity",
-                                                             result.getBestTarget().getPoseAmbiguity())
+
                             self.tag_seen = True
                             self.add_vision_measurement(pose_result.toPose2d(),
                                                         utils.fpga_to_current_time(pose_estimate.timestampSeconds),
@@ -801,8 +799,8 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             self.target_direction = Rotation2d(self.target_direction.radians() + turn_amount * degreesToRadians(3))
 
         if self.auto_slow:
-            x_speed = x_speed * 0.35
-            y_speed = y_speed * 0.35
+            x_speed = x_speed * 0.2
+            y_speed = y_speed * 0.2
 
         return (self.clt_request
                 .with_velocity_x(x_speed)

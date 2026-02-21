@@ -162,10 +162,10 @@ class IntakeSubsystem(Subsystem):
                 self._intake_table.putBoolean("Intake Rollers On?", False)
 
         if self.state == "launching" or self.state == "launching_reverse":
-            if get_current_time_seconds() - self._last_launch_cycle > 0.5:
+            if get_current_time_seconds() - self._last_launch_cycle > 0.25:
                 self._last_launch_cycle_up = not self._last_launch_cycle_up
 
-                if self._last_launch_cycle_up:
+                if self._last_launch_cycle_up and not self.get_retracted():
                     self.set_state("launching")
                 else:
                     self.set_state("launching_reverse")

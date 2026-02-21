@@ -3,9 +3,10 @@ from commands2 import Command
 from subsystems.intakesubsystem import IntakeSubsystem
 from subsystems.launchersubsystem import LauncherSubsystem
 from subsystems.hoppersubsystem import HopperSubsystem
-from subsystems.climbersubsystem import ClimberSubsystem
+# from subsystems.climbersubsystem import ClimberSubsystem
 from subsystems.command_swerve_drivetrain import CommandSwerveDrivetrain
 from telemetry import Telemetry
+from ntcore import NetworkTableInstance
 
 class DebugMode(Command):
 
@@ -26,6 +27,9 @@ class DebugMode(Command):
         # self._climber = climber
         self._drive = drive
 
+        self._inst = NetworkTableInstance.getDefault()
+        self._debug_table = self._inst.getTable("Debug")
+
     def initialize(self):
         self._intake.set_debug_mode(self._on)
         self._launcher.set_debug_mode(self._on)
@@ -33,6 +37,7 @@ class DebugMode(Command):
         self._telemetry.set_debug_mode(self._on)
         # self._climber.set_debug_mode(self._on)
         self._drive.set_debug_mode(self._on)
+        self._debug_table.putBoolean("Debug Mode Active", self._on)
 
     def isFinished(self) -> bool:
         return True
