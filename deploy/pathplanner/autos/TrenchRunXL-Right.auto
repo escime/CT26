@@ -1,0 +1,61 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "named",
+          "data": {
+            "name": "start_timer"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "ModifiedTrenchRight_XL"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "launch_long"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "ModifiedHUBtoNZRight"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "launch"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "intake_off"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "stop_hopper"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "stop_timer"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": null,
+  "choreoAuto": false
+}
