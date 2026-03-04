@@ -50,7 +50,7 @@ class AutoLaunch(Command):
         return True
 
     def get_clt_on_target(self) -> bool:
-        if self.drive.target_direction.degrees() - 2 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 2:
+        if self.drive.target_direction.degrees() - 4 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 4:
             return True
         else:
             return False

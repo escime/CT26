@@ -80,7 +80,7 @@ class PoseLaunch(Command):
                 return False
         else:
             # print("SIP check active")
-            if self.drive.target_direction.degrees() - 2 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 2:
+            if self.drive.target_direction.degrees() - 3 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 3:
                 return True
             else:
                 return False

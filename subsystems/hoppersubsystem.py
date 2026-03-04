@@ -86,6 +86,7 @@ class HopperSubsystem(Subsystem):
         self.feeder_tvfoc = VelocityTorqueCurrentFOC(velocity=0,
                                                      feed_forward=HopperConstants.torque_feedforward,
                                                      slot=0)
+        self.feeder_volts = VoltageOut(0)
 
         status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
         for _ in range(0, 5):
@@ -105,7 +106,8 @@ class HopperSubsystem(Subsystem):
         # self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][0]))
         self.left_indexer.set_control(self.hopper_foc.with_output(self.state_values[state][1]))
         self.right_indexer.set_control(self.hopper_foc.with_output(self.state_values[state][0]))
-        self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
+        # self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
+        self.feeder.set_control(self.feeder_volts.with_output(self.state_values[state][2]))
 
         if state == "jam_clear":
             self._jam_clear_activate = get_current_time_seconds()

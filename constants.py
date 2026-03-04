@@ -264,14 +264,14 @@ class LauncherConstants:
 class IntakeConstants:
     # [Intake speed, Deploy power]
     state_values = {"stow": [0, -2],
-                    "retracting": [0, -30],
-                    "intake": [5, 35],
+                    "retracting": [0, -40],
+                    "intake": [5, 40],
                     "intaking": [8, 25],
                     "deployed": [0, 5],
                     "outpost": [-8, 0],
-                    "launching": [6, -40], # -35
-                    "launching_reverse": [6, -5], # 10
-                    "jam_clear": [1, 10]
+                    "launching": [6, -35], # -35
+                    "launching_reverse": [6, 10], # 5
+                    "jam_clear": [1, 30]
                     }
 
     intake_leader_can_id = 40
@@ -302,16 +302,24 @@ class HopperConstants:
     # }
 
     # spindexer right (amps), spindexer left (amps), feeder (rotations/sec)
+    # state_values = {
+    #     "off": [0, 0, 0],
+    #     "launching": [100, 100, 3500 / 60],
+    #     "intaking": [0, 0, 0 / 60],
+    #     "jam_clear": [-60, -60, -750 / 60]
+    # }
+
+    # spindexer right (amps), spindexer left (amps), feeder volts
     state_values = {
         "off": [0, 0, 0],
-        "launching": [80, 80, 3500 / 60],
-        "intaking": [0, 0, 0 / 60],  # -1, -1, -300
-        "jam_clear": [-60, -60, -750 / 60]
+        "launching": [100, 100, 10],
+        "intaking": [0, 0, 0 / 60],
+        "jam_clear": [-60, -60, -10]
     }
 
     right_indexer_can_id = 50
     left_indexer_can_id = 51
-    stator_current_limit = 90
+    stator_current_limit = 95
     supply_current_limit = 40
     indexer_gear_ratio = 4
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
