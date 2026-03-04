@@ -15,7 +15,7 @@ from subsystems.climbersubsystem import ClimberSubsystem
 
 from wpilib import SmartDashboard, SendableChooser, DriverStation, DataLogManager, Timer, Alert, Joystick
 from wpimath.filter import SlewRateLimiter
-from pathplannerlib.auto import NamedCommands, AutoBuilder
+from pathplannerlib.auto import NamedCommands, AutoBuilder, PathPlannerAuto
 
 from generated.tuner_constants import TunerConstants
 from telemetry import Telemetry
@@ -99,7 +99,7 @@ class RobotContainer:
 
         # Configure drivetrain settings. -------------------------------------------------------------------------------
         self._max_speed = TunerConstants.speed_at_12_volts  # speed_at_12_volts desired top speed
-        self._max_angular_rate = rotationsToRadians(1)  # was 0.75
+        self._max_angular_rate = rotationsToRadians(0.75)  # was 0.75
 
         self._logger = Telemetry(self._max_speed)
 
@@ -138,11 +138,25 @@ class RobotContainer:
         self.configure_triggers()
 
         # Setup autonomous selector on the dashboard. ------------------------------------------------------------------
-        self.m_chooser = AutoBuilder.buildAutoChooser("DoNothing")
+        # self.m_chooser = AutoBuilder.buildAutoChooser("DoNothing")
+        self.m_chooser = SendableChooser()
+        self.m_chooser.setDefaultOption("DoNothing", None)
+        self.m_chooser.addOption("TrenchRun-Right", PathPlannerAuto("TrenchRun-Right", False))
+        self.m_chooser.addOption("TrenchRun-Left", PathPlannerAuto("TrenchRun-Right", True))
+        self.m_chooser.addOption("TrenchRunXL-Right", PathPlannerAuto("TrenchRunXL-Right", False))
+        self.m_chooser.addOption("TrenchRunXL-Left", PathPlannerAuto("TrenchRunXL-Right", True))
+        self.m_chooser.addOption("TrenchOnlyXL-Right", PathPlannerAuto("TrenchOnlyXL-Right", False))
+        self.m_chooser.addOption("TrenchOnlyXL-Left", PathPlannerAuto("TrenchOnlyXL-Right", True))
+        self.m_chooser.addOption("TrenchRunXS-Right", PathPlannerAuto("TrenchRunXS-Right", False))
+        self.m_chooser.addOption("TrenchRunXS-Left", PathPlannerAuto("TrenchRunXS-Right", True))
+        self.m_chooser.addOption("Preload", PathPlannerAuto("Preload", False))
+        self.m_chooser.addOption("Depot", PathPlannerAuto("Depot", False))
+        self.m_chooser.addOption("Outpost", PathPlannerAuto("Outpost", False))
         SmartDashboard.putData("Auto Select", self.m_chooser)
 
-        self.drive_filter_x = SlewRateLimiter(3, -3, 0)
-        self.drive_filter_y = SlewRateLimiter(3, -3, 0)
+        self.drive_filter_x = SlewRateLimiter(5, -5, 0)
+        self.drive_filter_y = SlewRateLimiter(5, -5, 0)
+        self.drive_filter_r = SlewRateLimiter(7, -7, 0)
 
     def configure_triggers(self) -> None:
         # DRIVER COMMANDS # ############################################################################################
@@ -155,7 +169,8 @@ class RobotContainer:
                                 self.deadband_controller(self.driver_controller.getLeftY())) * self._max_speed * -1 * self.drivetrain.slow_mode_application,
                             self.drive_filter_x.calculate(
                                 self.deadband_controller(self.driver_controller.getLeftX())) * self._max_speed * -1 * self.drivetrain.slow_mode_application,
-                            self.deadband_controller(self.driver_controller.getRightX()) * -1
+                            self.drive_filter_r.calculate(
+                                self.deadband_controller(self.driver_controller.getRightX())) * -1
                         )
                     )
                 )
@@ -163,7 +178,7 @@ class RobotContainer:
 
         # Enable Slow Mode
         self.driver_controller.rightTrigger(0.1).onTrue(
-            runOnce(lambda: self.drivetrain.set_slow_mode(max(abs(self.driver_controller.getRightTriggerAxis()), 0.375), max(abs(self.driver_controller.getRightTriggerAxis()), 0.375)))
+            runOnce(lambda: self.drivetrain.set_slow_mode(0.375, 0.375))
         ).onFalse(
             runOnce(lambda: self.drivetrain.set_slow_mode(1, 1))
         )
@@ -175,7 +190,7 @@ class RobotContainer:
                     self._drive
                     .with_velocity_x(self.drive_filter_y.calculate(self.deadband_controller(self.driver_controller.getLeftY())) * -1 * self._max_speed * self.drivetrain.slow_mode_application)
                     .with_velocity_y(self.drive_filter_x.calculate(self.deadband_controller(self.driver_controller.getLeftX())) * -1 * self._max_speed * self.drivetrain.slow_mode_application)
-                    .with_rotational_rate(self.driver_controller.getRightX() * -1 * self._max_angular_rate * self.drivetrain.slow_mode_turning_application)
+                    .with_rotational_rate(self.drive_filter_r.calculate(self.driver_controller.getRightX()) * -1 * self._max_angular_rate * self.drivetrain.slow_mode_turning_application)
                 )
             )
         ).onFalse(
@@ -187,8 +202,6 @@ class RobotContainer:
             SequentialCommandGroup(
                 SmartSetTargetDirection(self.drivetrain),
                 runOnce(lambda: self.launcher.set_state("off"), self.launcher),
-                # runOnce(lambda: self.climber.set_state("stow"), self.climber),
-                runOnce(lambda: self.leds.set_state("default"), self.leds)
             )
         ).whileTrue(
             self.drivetrain.apply_request(
@@ -326,7 +339,22 @@ class RobotContainer:
         self.driver_controller.rightStick().and_(lambda: not self.test_bindings).whileTrue(
             ParallelCommandGroup(
                 OutpostFeed(self.launcher, self.hopper, self.intake),
-                runOnce(lambda: self.leds.set_state("white_flashing"), self.leds)
+                runOnce(lambda: self.leds.set_state("white_flashing"), self.leds),
+                # runOnce(lambda: self.drivetrain.set_clt_target_direction(Rotation2d.fromDegrees(180)))
+            )
+        ).onFalse(
+            SequentialCommandGroup(
+                WaitCommand(0.5),
+                runOnce(lambda: self.hopper.set_state("off"), self.hopper),
+                runOnce(lambda: self.leds.set_state("default"), self.leds)
+            )
+        )
+
+        # NZ feed button.
+        self.driver_controller.start().and_(lambda: not self.test_bindings).whileTrue(
+            ParallelCommandGroup(
+                Feed(self.launcher, self.hopper, self.intake, self.drivetrain),
+                runOnce(lambda: self.leds.set_state("white_flashing"), self.leds),
             )
         ).onFalse(
             SequentialCommandGroup(
@@ -348,7 +376,7 @@ class RobotContainer:
         )
 
         # Vibrate the controller when 7 seconds remain in the period.
-        button.Trigger(lambda: self.util.get_inactive_warning(7) and DriverStation.isTeleopEnabled()).onTrue(
+        button.Trigger(lambda: self.util.get_inactive_warning(10) and DriverStation.isTeleopEnabled()).onTrue(
             runOnce(lambda: self.driver_controller.setRumble(Joystick.RumbleType.kBothRumble, 1))
         ).onFalse(
             runOnce(lambda: self.driver_controller.setRumble(Joystick.RumbleType.kBothRumble, 0)).ignoringDisable(True)
@@ -363,7 +391,7 @@ class RobotContainer:
         # )
 
         # Reset pose.
-        self.driver_controller.y().and_(lambda: not self.test_bindings).onTrue(
+        self.driver_controller.y().and_(lambda: not self.test_bindings).and_(lambda: not DriverStation.isDisabled()).onTrue(
             ParallelDeadlineGroup(
                 self.drivetrain.apply_request(lambda: self._drive.with_velocity_x(0).with_velocity_y(0).with_rotational_rate(0)).withTimeout(0.5),
                 SequentialCommandGroup(
@@ -373,12 +401,25 @@ class RobotContainer:
             )
         )
 
+        self.driver_controller.y().and_(lambda: not self.test_bindings).and_(lambda: DriverStation.isDisabled()).onTrue(
+            SequentialCommandGroup(
+                runOnce(lambda: self.drivetrain.reset_odometry()).ignoringDisable(True),
+                ResetCLT(self.drivetrain).ignoringDisable(True)
+            )
+        )
+
         # OPERATOR COMMANDS # ##########################################################################################
         self.operator_controller.y().onTrue(
             DebugMode(self._logger, self.intake, self.launcher, self.hopper, self.drivetrain, True).ignoringDisable(True)
         )
         self.operator_controller.x().onTrue(
             DebugMode(self._logger, self.intake, self.launcher, self.hopper, self.drivetrain, False).ignoringDisable(True)
+        )
+        self.operator_controller.povUp().onTrue(
+            runOnce(lambda: self.launcher.update_launcher_trim(0.02), self.launcher)
+        )
+        self.operator_controller.povDown().onTrue(
+            runOnce(lambda: self.launcher.update_launcher_trim(-0.02), self.launcher)
         )
         # self.operator_controller.a().onTrue(
         #     run(lambda: self.climber.manual_control(self.operator_controller.getLeftY()), self.climber)
@@ -479,20 +520,33 @@ class RobotContainer:
         NamedCommands.registerCommand("stop_timer", StopAutoTimer(self.util, self.timer))
         NamedCommands.registerCommand("reset_CLT", ResetCLT(self.drivetrain))
         NamedCommands.registerCommand("intake_on", IntakeAuto(self.intake, self.hopper))
+        NamedCommands.registerCommand("intake_off", runOnce(lambda: self.intake.set_state("stow"), self.intake))
         NamedCommands.registerCommand("3d_mode_on", runOnce(lambda: self.drivetrain.set_3d(True)))
         NamedCommands.registerCommand("3d_mode_off", runOnce(lambda: self.drivetrain.set_3d(True)))
         # NamedCommands.registerCommand("climb", runOnce(lambda: self.climber.set_state("climb"), self.climber))
         # NamedCommands.registerCommand("climb_deploy", runOnce(lambda: self.climber.set_state("deployed"), self.climber))
         NamedCommands.registerCommand("standby_flywheel", runOnce(lambda: self.launcher.set_state("standby"), self.launcher))
+        NamedCommands.registerCommand("stop_hopper", runOnce(lambda: self.hopper.set_state("off"), self.hopper))
         NamedCommands.registerCommand(
             "launch",
             SequentialCommandGroup(
                 SequentialCommandGroup(
                     AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
-                ).repeatedly().withTimeout(4), # TODO change to last shot condition
+                ).repeatedly().withTimeout(3.5),
             AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper),
             ResetCLT(self.drivetrain)
+            )
+        )
+        NamedCommands.registerCommand(
+            "launch_long",
+            SequentialCommandGroup(
+                SequentialCommandGroup(
+                    AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
+                    self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
+                ).repeatedly().withTimeout(5),
+                AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper),
+                ResetCLT(self.drivetrain)
             )
         )
         NamedCommands.registerCommand("close_to_tower",

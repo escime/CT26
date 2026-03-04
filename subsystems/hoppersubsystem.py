@@ -1,7 +1,7 @@
 from commands2 import Subsystem
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, VelocityTorqueCurrentFOC, VelocityVoltage
+from phoenix6.controls import VoltageOut, VelocityTorqueCurrentFOC, VelocityVoltage, TorqueCurrentFOC
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
 from phoenix6.signals import MotorAlignmentValue, NeutralModeValue
@@ -35,6 +35,7 @@ class HopperSubsystem(Subsystem):
         self.right_indexer = TalonFX(HopperConstants.right_indexer_can_id, CANBus("rio"))
 
         self.hopper_volts = VoltageOut(0, True)
+        self.hopper_foc = TorqueCurrentFOC(output=0, max_abs_duty_cycle=0.8)
 
         indexer_configs = TalonFXConfiguration()
 
@@ -70,9 +71,9 @@ class HopperSubsystem(Subsystem):
 
         feeder_configs = TalonFXConfiguration()
 
-        feeder_configs.current_limits.stator_current_limit = HopperConstants.stator_current_limit
+        feeder_configs.current_limits.stator_current_limit = HopperConstants.feeder_stator_current_limit
         feeder_configs.current_limits.stator_current_limit_enable = True
-        feeder_configs.current_limits.supply_current_limit = HopperConstants.supply_current_limit
+        feeder_configs.current_limits.supply_current_limit = HopperConstants.feeder_supply_current_limit
         feeder_configs.current_limits.supply_current_limit_enable = True
         feeder_configs.motor_output.inverted = HopperConstants.feeder_direction
 
@@ -96,13 +97,18 @@ class HopperSubsystem(Subsystem):
 
         # Other Setup --------------------------------------------------------------------------------------------------
         self.last_time = get_current_time_seconds()
+        self._jam_clear_activate = get_current_time_seconds()
 
     def set_state(self, state: str) -> None:
         self.state = state
-        self.left_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][1]))
-        self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][0]))
-        # self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
+        # self.left_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][1]))
+        # self.right_indexer.set_control(self.hopper_volts.with_output(self.state_values[state][0]))
+        self.left_indexer.set_control(self.hopper_foc.with_output(self.state_values[state][1]))
+        self.right_indexer.set_control(self.hopper_foc.with_output(self.state_values[state][0]))
         self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
+
+        if state == "jam_clear":
+            self._jam_clear_activate = get_current_time_seconds()
 
     def get_state(self) -> str:
         return self.state
@@ -122,3 +128,6 @@ class HopperSubsystem(Subsystem):
             self._hopper_table.putString("Hopper State", self.get_state())
             self._hopper_table.putNumber("Feeder Velocity", self.feeder.get_velocity().value_as_double)
             self._hopper_table.putNumber("Feeder Target Velocity", self.state_values[self.state][2])
+
+        if self.state == "jam_clear" and get_current_time_seconds() - self._jam_clear_activate > 1:
+            self.set_state("off")

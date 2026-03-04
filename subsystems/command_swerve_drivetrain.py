@@ -190,7 +190,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             .with_drive_request_type(swerve.SwerveModule.DriveRequestType.VELOCITY)
             .with_desaturate_wheel_speeds(True)
         )
-        self.clt_request.heading_controller.setPID(6, 0.001, 0) # kp was 5
+        self.clt_request.heading_controller.setPID(5, 0.001, 0)
         self.clt_request.heading_controller.enableContinuousInput(0, -2 * math.pi)
         self.clt_request.heading_controller.setTolerance(1)
         self.re_entered_clt = True
@@ -319,10 +319,10 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
            camera_prop.setAvgLatency(0.01)
            camera_prop.setLatencyStdDev(0.01)
            cam1_sim = PhotonCameraSim(VisionConstants.cam1, camera_prop)
-           cam2_sim = PhotonCameraSim(VisionConstants.cam2, camera_prop)
+           # cam2_sim = PhotonCameraSim(VisionConstants.cam2, camera_prop)
            cam3_sim = PhotonCameraSim(VisionConstants.cam3, camera_prop)
            self.vision_sim.addCamera(cam1_sim, VisionConstants.robot_to_cam1)
-           self.vision_sim.addCamera(cam2_sim, VisionConstants.robot_to_cam2)
+           # self.vision_sim.addCamera(cam2_sim, VisionConstants.robot_to_cam2)
            self.vision_sim.addCamera(cam3_sim, VisionConstants.robot_to_cam3)
 
 
@@ -358,7 +358,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             self.vel_acc_periodic()
 
         # Update PhotonVision cameras in real-life scenarios.
-        if self.photon_cam_array_3d[0].isConnected() and not utils.is_simulation():
+        if (self.photon_cam_array_3d[0].isConnected() or self.photon_cam_array_3d[1].isConnected()) and not utils.is_simulation():
             # if self.mode_3d:
             self.select_best_vision_pose((0.1, 0.1, 1))
             # else:
@@ -369,14 +369,12 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         # If in simulation, update PhotonVision for sim.
         if utils.is_simulation():
             self.vision_sim.update(self.get_pose())
-            if self.mode_3d:
-                self.select_best_vision_pose((10, 10, 9999999999999999999))
-            else:
-                self.update_2d_solution()
-                self._vision_table.putNumber("Target Yaw", self.target_yaw)
-                self._vision_table.putNumber("Target Range (in)", metersToInches(self.target_range))
-                self._vision_table.putBoolean("Target in View", self.target_in_view)
-                self._vision_table.putNumber("Target ID", self.target_id)
+            self.select_best_vision_pose((9999999999999, 999999999999, 9999999999999999999))
+            # self.update_2d_solution()
+            # self._vision_table.putNumber("Target Yaw", self.target_yaw)
+            # self._vision_table.putNumber("Target Range (in)", metersToInches(self.target_range))
+            # self._vision_table.putBoolean("Target in View", self.target_in_view)
+            # self._vision_table.putNumber("Target ID", self.target_id)
 
     def set_auto_slow(self, on: bool) -> None:
         self.auto_slow = on
@@ -659,6 +657,19 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         else:
             return self.get_auto_lookahead_heading(VisionConstants.blue_hub_center, time_compensation) + 180
 
+    def get_feed_alignment_heading(self, time_compensation: float) -> float:
+        """Returns the required target heading to point at a goal."""
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            if self.get_pose().y > 4.023:
+                return self.get_auto_lookahead_heading(VisionConstants.red_outpost_center, time_compensation) + 180
+            else:
+                return self.get_auto_lookahead_heading(VisionConstants.red_depot_center, time_compensation) + 180
+        else:
+            if self.get_pose().y > 4.023:
+                return self.get_auto_lookahead_heading(VisionConstants.blue_depot_center, time_compensation) + 180
+            else:
+                return self.get_auto_lookahead_heading(VisionConstants.blue_outpost_center, time_compensation) + 180
+
     def get_goal_alignment_heading_with_tof(self, time_compensation: float) -> float:
         """Returns the required target heading to point at a goal."""
         if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
@@ -723,6 +734,26 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         else:
             return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_hub_center[0], 2) +
                              math.pow(adjusted_pose.y - VisionConstants.blue_hub_center[1], 2))
+
+    def get_auto_lookahead_range_to_feed(self, time_compensation: float) -> float:
+        current_pose = self.get_pose()
+        adjusted_pose = Pose2d(current_pose.x + self.vx_new * time_compensation,
+                               current_pose.y + self.vy_new * time_compensation,
+                               current_pose.rotation() + Rotation2d(self.omega_new * time_compensation))
+        if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
+            if current_pose.y > 4.023:
+                return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.red_outpost_center[0], 2) +
+                                 math.pow(adjusted_pose.y - VisionConstants.red_outpost_center[1], 2))
+            else:
+                return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.red_depot_center[0], 2) +
+                                 math.pow(adjusted_pose.y - VisionConstants.red_depot_center[1], 2))
+        else:
+            if current_pose.y > 4.023:
+                return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_depot_center[0], 2) +
+                                 math.pow(adjusted_pose.y - VisionConstants.blue_depot_center[1], 2))
+            else:
+                return math.sqrt(math.pow(adjusted_pose.x - VisionConstants.blue_outpost_center[0], 2) +
+                                 math.pow(adjusted_pose.y - VisionConstants.blue_outpost_center[1], 2))
 
     def get_auto_lookahead_range_with_tof(self, time_compensation: float) -> float:
         """This function is intended to be a "second order" use of the range to goal function that additionally
@@ -875,7 +906,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
         if DriverStation.getAlliance() == DriverStation.Alliance.kBlue:
             y_output = -1 * y_output
 
-        return self.drive_clt(x_speed, y_output * 5.12, 0)
+        return self.drive_clt(x_speed, y_output * 5.12 * 0.9, 0)
 
 
 class ResetCLT(Command):

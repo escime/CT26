@@ -67,6 +67,18 @@
         {
           "type": "named",
           "data": {
+            "name": "intake_off"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
+            "name": "stop_hopper"
+          }
+        },
+        {
+          "type": "named",
+          "data": {
             "name": "stop_timer"
           }
         }

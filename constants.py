@@ -63,6 +63,12 @@ class VisionConstants:
     red_hub_center = [11.915, 4.035]
     blue_hub_center = [4.630, 4.035]
 
+    red_depot_center = [16.197, 2.051]
+    blue_depot_center = [0.286, 5.890]
+
+    red_outpost_center = [16.101, 6.212]
+    blue_outpost_center = [0.383, 1.673]
+
     range_tof_table = [0, 2.5, 5, 50] # meters
     time_tof_table = [0, 1.25, 2, 10] # seconds
 
@@ -164,12 +170,12 @@ class VisionConstants:
 
     # Camera 3 Information ---------------------------------------------------------------------------------------------
     cam_3_name = "Arducam_OV9281_USB_Camera"
-    robot_to_cam3 = Transform3d(Translation3d(inchesToMeters(-11.922283),
-                                              inchesToMeters(9.89851),
-                                              inchesToMeters(12.70455)),
+    robot_to_cam3 = Transform3d(Translation3d(inchesToMeters(-13.04082),
+                                              inchesToMeters(5.53000),
+                                              inchesToMeters(14.187500)),
                                 Rotation3d(degreesToRadians(0),
                                            degreesToRadians(0),
-                                           degreesToRadians(-30 + 180)))
+                                           degreesToRadians(180)))
 
     cam3 = photonCamera.PhotonCamera(cam_3_name)
 
@@ -188,23 +194,25 @@ class VisionConstants:
 class LauncherConstants:
     state_values = {"off": 0, # In rotations per second
                     "safety": 100 / 60,
-                    "standby": 500 / 60,
-                    "outpost": 1000 / 60,
+                    "standby": 2800 / 60,
+                    "outpost": 2000 / 60,
                     "tower": 3250 / 60,
                     "hub": 2800 / 60,
-                    "feed": 500 / 60}
+                    "feed": 4500 / 60}
     hood_state_values = {"off": 0,
                          "safety": 0,
                          "standby": 0,
                          "outpost": 1,
                          "tower": 0.75,
-                         "hub": 0.375,
+                         "hub": 0.4,
                          "feed": 1}
+
+    default_trim = 0.0
 
     # Setup Values -----------------------------------------------------------------------------------------------------
     flywheel_main_can_id = 30
     flywheel_follower_can_id = 31
-    stator_current_limit = 120
+    stator_current_limit = 100
     supply_current_limit = 60
     gear_ratio = 1
     direction = InvertedValue.CLOCKWISE_POSITIVE
@@ -212,10 +220,10 @@ class LauncherConstants:
     flywheel_rps_threshold = 2
 
     gp_sensor_port = 0
-    launch_time_threshold = 0.5
+    launch_time_threshold = 1
 
     hood_can_id = 32
-    hood_stator_current_limit = 120
+    hood_stator_current_limit = 100
     hood_supply_current_limit = 40
     hood_gear_ratio = 1 # (330 * 24) / (15 * 12)
     hood_direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
@@ -246,9 +254,10 @@ class LauncherConstants:
     # Launcher Table ---------------------------------------------------------------------------------------------------
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
-        [0, 0, 2000 / 60],
+        [0, 0.35, 2500 / 60], # 0, 0, 2000 / 60
+        [0.5, 0.375, 2800 / 60],
         [2.5, 0.52, 3200 / 60],
-        [5.06, 0.75, 4200 / 60],
+        [5.06, 0.75, 4000 / 60],
         [15, 1, 5500 / 60]
     ]
 
@@ -257,44 +266,52 @@ class IntakeConstants:
     state_values = {"stow": [0, -2],
                     "retracting": [0, -30],
                     "intake": [5, 35],
-                    "intaking": [12, 5],
+                    "intaking": [8, 25],
                     "deployed": [0, 5],
-                    "outpost": [-12, 0],
-                    "launching": [8, -40], # -35
-                    "launching_reverse": [8, -5], # 10
+                    "outpost": [-8, 0],
+                    "launching": [6, -40], # -35
+                    "launching_reverse": [6, -5], # 10
                     "jam_clear": [1, 10]
                     }
 
     intake_leader_can_id = 40
     intake_follower_can_id = 41
-    stator_current_limit = 120
+    stator_current_limit = 80 # 120
     supply_current_limit = 40
     gear_ratio = 1
     direction = InvertedValue.CLOCKWISE_POSITIVE
 
     intake_deploy_can_id = 42
     max_duty_cycle = 0.75
-    intake_deploy_stator_current_limit = 120
+    intake_deploy_stator_current_limit = 100
     intake_deploy_supply_current_limit = 40
     intake_deploy_gear_ratio = 20 * 3
     intake_deploy_peak_forward_current = 60
     intake_deploy_peak_reverse_current = -60
 
     deployed_amount = 0.15
-    retracted_amount = 0.04
+    retracted_amount = 0.02
 
 class HopperConstants:
     # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
+    # state_values = {
+    #     "off": [0, 0, 0],
+    #     "launching": [7, 7, 3500 / 60],
+    #     "intaking": [0, 0, 0 / 60], # -1, -1, -300
+    #     "jam_clear": [-8, -8, -750 / 60]
+    # }
+
+    # spindexer right (amps), spindexer left (amps), feeder (rotations/sec)
     state_values = {
         "off": [0, 0, 0],
-        "launching": [7, 7, 3500 / 60],
-        "intaking": [0, 0, 0 / 60], # -1, -1, -300
-        "jam_clear": [-8, -8, -750 / 60]
+        "launching": [80, 80, 3500 / 60],
+        "intaking": [0, 0, 0 / 60],  # -1, -1, -300
+        "jam_clear": [-60, -60, -750 / 60]
     }
 
     right_indexer_can_id = 50
     left_indexer_can_id = 51
-    stator_current_limit = 120
+    stator_current_limit = 90
     supply_current_limit = 40
     indexer_gear_ratio = 4
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
@@ -304,6 +321,8 @@ class HopperConstants:
     feeder_direction = InvertedValue.CLOCKWISE_POSITIVE
     feeder_can_id = 52
     feeder_gear_ratio = 1
+    feeder_stator_current_limit = 100
+    feeder_supply_current_limit = 40
 
     kp = 0.2 # 0.2
     ki = 0

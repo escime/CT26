@@ -52,7 +52,7 @@ class PoseLaunch(Command):
         if self.launcher.get_at_target() and not self._launching_active and self.util.get_hub_active() and self.get_clt_on_target():
             self.hopper.set_state("launching")
             self.intake.set_state("launching")
-            self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
+            # self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
             self._launching_active = True
         elif self._launching_active and not self.util.get_hub_active():
             self.hopper.set_state("off")
@@ -67,12 +67,20 @@ class PoseLaunch(Command):
         self.launcher.set_state("off")
         self.hopper.set_state("jam_clear")
         # self.intake.set_state("stow")
-        self.drive.set_3d(False)
+        # self.drive.set_3d(False)
         self.drive.set_lookahead(False)
         self.drive.set_auto_slow(False)
 
     def get_clt_on_target(self) -> bool:
-        if self.drive.target_direction.degrees() - 2 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 2:
-            return True
+        if self.drive.get_chassis_speeds().vy > 5.12 * 0.05:
+            # print("SOTM check active")
+            if self.drive.target_direction.degrees() - 10 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 10:
+                return True
+            else:
+                return False
         else:
-            return False
+            # print("SIP check active")
+            if self.drive.target_direction.degrees() - 2 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 2:
+                return True
+            else:
+                return False

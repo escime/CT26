@@ -171,3 +171,8 @@ class IntakeSubsystem(Subsystem):
                     self.set_state("launching_reverse")
 
                 self._last_launch_cycle = get_current_time_seconds()
+
+        if self.state == "stow" and not self.get_retracted():
+            self.set_state("retracting")
+        elif self.state == "retracting" and self.get_retracted():
+            self.set_state("stow")

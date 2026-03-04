@@ -36,6 +36,7 @@ class Robot(TimedCommandRobot):
     def disabledInit(self) -> None:
         """Nothing is written here yet. Probably will not modify unless something is required for end-of-match."""
         SignalLogger.stop()
+        CommandScheduler.getInstance().cancelAll()
 
     def disabledPeriodic(self) -> None:
         """This isn't the most useful state to call anything in because you can set commands to run in disabled.
@@ -62,10 +63,10 @@ class Robot(TimedCommandRobot):
             self.m_autonomous_command.cancel()
         cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.reset_clt(),
                     self.m_robotcontainer.drivetrain).schedule()
-        cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
-                    self.m_robotcontainer.drivetrain).schedule()
-        # elasticlib.select_tab("Teleoperated")
-        # elasticlib.send_notification(self.teleop_notification)
+        # cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
+        #             self.m_robotcontainer.drivetrain).schedule()
+        elasticlib.select_tab("Teleoperated")
+        elasticlib.send_notification(self.teleop_notification)
         # self.m_robotcontainer.leds.set_state("default")
 
     def teleopPeriodic(self) -> None:

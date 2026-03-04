@@ -150,6 +150,7 @@ class LauncherSubsystem(Subsystem):
         self.last_launch_time = get_current_time_seconds()
         self.last_time = get_current_time_seconds()
         self.setpoint_enabled_time = get_current_time_seconds()
+        self._launcher_trim = LauncherConstants.default_trim
 
         # SYSID Setup --------------------------------------------------------------------------------------------------
         self.sys_id_control = VoltageOut(0)
@@ -284,11 +285,11 @@ class LauncherSubsystem(Subsystem):
         if state == "auto":
             self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self.auto_velocity).with_slot(0))
             self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self.auto_velocity).with_slot(0))
-            self.hood.set_control(self.hood_mm.with_position(self.auto_hood_position).with_slot(0))
+            self.hood.set_control(self.hood_mm.with_position(self.auto_hood_position + self._launcher_trim).with_slot(0))
         elif state == "testing":
             self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self._launcher_table.getNumber("Testing Launcher Speed", 2000) / 60).with_slot(0))
             self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self._launcher_table.getNumber("Testing Launcher Speed", 2000) / 60).with_slot(0))
-            self.hood.set_control(self.hood_mm.with_position(self._launcher_table.getNumber("Testing Launcher Hood Angle", 0)).with_slot(0))
+            self.hood.set_control(self.hood_mm.with_position(self._launcher_table.getNumber("Testing Launcher Hood Angle", 0) + self._launcher_trim).with_slot(0))
         elif state == "off":
             self.flywheel.set_control(self.flywheel_volts.with_output(0))
             self.flywheel_follower.set_control(self.flywheel_volts.with_output(0))
@@ -296,7 +297,12 @@ class LauncherSubsystem(Subsystem):
         else:
             self.flywheel.set_control(self.flywheel_tvfoc.with_velocity(self.state_values[state]).with_slot(0))
             self.flywheel_follower.set_control(self.flywheel_tvfoc.with_velocity(self.state_values[state]).with_slot(0))
-            self.hood.set_control(self.hood_mm.with_position(self.hood_state_values[state]).with_slot(0))
+            self.hood.set_control(self.hood_mm.with_position(self.hood_state_values[state] + self._launcher_trim).with_slot(0))
+
+    def update_launcher_trim(self, amount: float) -> None:
+        self._launcher_trim += amount
+        self._launcher_table.putNumber("Trim Adjustment", self._launcher_trim)
+
 
     def set_flywheel_auto_default_velocity(self, velocity: float) -> None:
         self.auto_velocity = velocity

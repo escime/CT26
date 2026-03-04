@@ -11,21 +11,21 @@
           }
         },
         {
-          "type": "named",
+          "type": "path",
           "data": {
-            "name": "intake_on"
+            "pathName": "ModifiedTrenchRight"
           }
         },
         {
           "type": "named",
           "data": {
-            "name": "standby_flywheel"
+            "name": "launch"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "TrenchRight"
+            "pathName": "ModifiedHUBtoNZRight"
           }
         },
         {
@@ -37,25 +37,13 @@
         {
           "type": "named",
           "data": {
-            "name": "intake_on"
+            "name": "intake_off"
           }
         },
         {
           "type": "named",
           "data": {
-            "name": "standby_flywheel"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "HUBtoNZRight"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "launch"
+            "name": "stop_hopper"
           }
         },
         {
