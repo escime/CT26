@@ -312,14 +312,14 @@ class HopperConstants:
     # spindexer right (amps), spindexer left (amps), feeder volts
     state_values = {
         "off": [0, 0, 0],
-        "launching": [100, 100, 10],
+        "launching": [100, 100, 12],
         "intaking": [0, 0, 0 / 60],
         "jam_clear": [-60, -60, -10]
     }
 
     right_indexer_can_id = 50
     left_indexer_can_id = 51
-    stator_current_limit = 95
+    stator_current_limit = 105
     supply_current_limit = 40
     indexer_gear_ratio = 4
     direction = InvertedValue.COUNTER_CLOCKWISE_POSITIVE
