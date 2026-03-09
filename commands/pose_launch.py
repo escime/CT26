@@ -40,7 +40,7 @@ class PoseLaunch(Command):
 
         self._launching_active = False
 
-        self.adder = 0
+        self.adder = 360
         if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
             self.adder = 180
 

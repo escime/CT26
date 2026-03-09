@@ -24,6 +24,8 @@ class Robot(TimedCommandRobot):
     test_notification = elasticlib.Notification(level="INFO", title="Test activated!",
                                                 description="The robot is now in test mode.", display_time=3000)
 
+    teleop_entered = False
+
     def robotInit(self) -> None:
         """Initialize the robot through the RobotContainer object and prep the default autonomous command (None)"""
         self.m_robotcontainer = RobotContainer()
@@ -65,6 +67,9 @@ class Robot(TimedCommandRobot):
                     self.m_robotcontainer.drivetrain).schedule()
         # cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
         #             self.m_robotcontainer.drivetrain).schedule()
+
+        self.m_robotcontainer.drivetrain.clt_request.heading_controller.reset()
+
         elasticlib.select_tab("Teleoperated")
         elasticlib.send_notification(self.teleop_notification)
         # self.m_robotcontainer.leds.set_state("default")

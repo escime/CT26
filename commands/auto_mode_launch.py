@@ -22,6 +22,7 @@ class AutoLaunch(Command):
         self.hopper = hopper
         self.intake = intake
 
+        self.brake = swerve.requests.SwerveDriveBrake()
         self.adder = 0
 
         self.addRequirements(launcher)
@@ -31,25 +32,33 @@ class AutoLaunch(Command):
     def initialize(self):
         self.drive.set_3d(True)
 
-        self.adder = 0
+        self.adder = 360
         if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
             self.adder = 180
 
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading_with_tof(0.25)))
         self.launcher.set_target_by_range(self.drive.get_auto_lookahead_range_with_tof(0.25))
-        self.drive.saved_request = (self.drive.clt_request.with_target_direction(self.drive.target_direction)
-                                    .with_velocity_x(0)
-                                    .with_velocity_y(0))
+        # self.drive.saved_request = (self.drive.clt_request.with_target_direction(self.drive.target_direction)
+        #                             .with_velocity_x(0)
+        #                             .with_velocity_y(0))
         if self.launcher.get_at_target() and self.get_clt_on_target():
             self.hopper.set_state("launching")
             self.intake.set_state("launching")
+            self.drive.saved_request = self.brake
+        else:
+            self.drive.saved_request = (self.drive.clt_request.with_target_direction(self.drive.target_direction)
+                                        .with_velocity_x(0)
+                                        .with_velocity_y(0))
 
 
     def isFinished(self) -> bool:
         return True
 
     def get_clt_on_target(self) -> bool:
+        # print("Target Direction: " + str(self.drive.target_direction.degrees()))
+        # print("Pose: " + str(self.drive.get_pose().rotation().degrees() + self.adder))
+
         if self.drive.target_direction.degrees() - 4 < self.drive.get_pose().rotation().degrees() + self.adder < self.drive.target_direction.degrees() + 4:
             return True
         else:

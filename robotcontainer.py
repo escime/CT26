@@ -152,6 +152,7 @@ class RobotContainer:
         self.m_chooser.addOption("Preload", PathPlannerAuto("Preload", False))
         self.m_chooser.addOption("Depot", PathPlannerAuto("Depot", False))
         self.m_chooser.addOption("Outpost", PathPlannerAuto("Outpost", False))
+        self.m_chooser.addOption("Launcher_Test", PathPlannerAuto("Launcher_Test", False))
         SmartDashboard.putData("Auto Select", self.m_chooser)
 
         self.drive_filter_x = SlewRateLimiter(5, -5, 0)
@@ -535,7 +536,8 @@ class RobotContainer:
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
                 ).repeatedly().withTimeout(3.5),
             AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper),
-            ResetCLT(self.drivetrain)
+            self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.02),
+            # ResetCLT(self.drivetrain)
             )
         )
         NamedCommands.registerCommand(
@@ -544,9 +546,10 @@ class RobotContainer:
                 SequentialCommandGroup(
                     AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
-                ).repeatedly().withTimeout(5),
+                ).repeatedly().withTimeout(7),
                 AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper),
-                ResetCLT(self.drivetrain)
+                self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.02),
+                # ResetCLT(self.drivetrain)
             )
         )
         NamedCommands.registerCommand("close_to_tower",
