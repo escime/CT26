@@ -137,11 +137,14 @@ class VisionConstants:
 
     # Camera 1 Information ---------------------------------------------------------------------------------------------
     cam_1_name = "launcher"
-    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(-8.90724), # -8.827717
-                                              inchesToMeters(-10.125), # -10.1875
-                                              inchesToMeters(20.92455)), # 20.666455
+    # robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(-11.66593), # -8.90724 | 25 degree camera -> -11.61657
+    #                                           inchesToMeters(-10.675), # -10.125 | 25 degree camera -> -10.675
+    #                                           inchesToMeters(20.90699)), # 20.92455 | 25 degree camera -> 21.00290
+    robot_to_cam1 = Transform3d(Translation3d(inchesToMeters(-11.61657),
+                                              inchesToMeters(-10.67500),
+                                              inchesToMeters(21.00290)),
                                 Rotation3d(degreesToRadians(0),
-                                           degreesToRadians(-20), # -25
+                                           degreesToRadians(-25), # -20
                                            degreesToRadians(0)))
 
     cam1 = photonCamera.PhotonCamera(cam_1_name)
@@ -254,23 +257,23 @@ class LauncherConstants:
     # Launcher Table ---------------------------------------------------------------------------------------------------
     # range in meters, hood angle in 0-1, shooter speed in RPM
     launcher_table = [
-        [0, 0.35, 2500 / 60], # 0, 0, 2000 / 60
-        [0.5, 0.375, 2800 / 60],
-        [2.5, 0.52, 3200 / 60],
-        [5.06, 0.75, 4000 / 60],
+        [0, 0.35, 2650 / 60], # 2500
+        [0.5, 0.375, 2950 / 60], # 2800
+        [2.5, 0.52, 3350 / 60], # 3200
+        [5.06, 0.75, 4150 / 60], # 4000
         [15, 1, 5500 / 60]
     ]
 
 class IntakeConstants:
     # [Intake speed, Deploy power]
-    state_values = {"stow": [0, -2],
+    state_values = {"stow": [0, -3], # -2
                     "retracting": [0, -40],
-                    "intake": [5, 40],
-                    "intaking": [8, 25],
+                    "intake": [10, 40],
+                    "intaking": [10, 25], # 8
                     "deployed": [0, 5],
                     "outpost": [-8, 0],
-                    "launching": [6, -35], # -35
-                    "launching_reverse": [6, 10], # 5
+                    "launching": [10, -40], # 6, -35
+                    "launching_reverse": [10, 15], # 6, 10
                     "jam_clear": [1, 30]
                     }
 
@@ -291,6 +294,7 @@ class IntakeConstants:
 
     deployed_amount = 0.15
     retracted_amount = 0.02
+    launched_amount = 0.065 # 0.04
 
 class HopperConstants:
     # spindexer right (volts), spindexer left (volts), feeder (rotations/sec)
@@ -313,7 +317,7 @@ class HopperConstants:
     state_values = {
         "off": [0, 0, 0],
         "launching": [100, 100, 12],
-        "intaking": [0, 0, 0 / 60],
+        "intaking": [0, 0, 0],
         "jam_clear": [-60, -60, -10]
     }
 

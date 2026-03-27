@@ -190,7 +190,7 @@ class CommandSwerveDrivetrain(Subsystem, TunerSwerveDrivetrain):
             .with_drive_request_type(swerve.SwerveModule.DriveRequestType.VELOCITY)
             .with_desaturate_wheel_speeds(True)
         )
-        self.clt_request.heading_controller.setPID(5, 0.001, 0)
+        self.clt_request.heading_controller.setPID(5.3, 0.001, 0)
         self.clt_request.heading_controller.enableContinuousInput(0, -2 * math.pi)
         self.clt_request.heading_controller.setTolerance(1)
         self.re_entered_clt = True

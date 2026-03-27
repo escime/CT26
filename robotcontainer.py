@@ -45,6 +45,7 @@ from commands.intake_auto import IntakeAuto
 from commands.emergency_retract import EmergencyRetract
 from commands.test_launch import TestLaunch
 from commands.debug_mode import DebugMode
+from commands.pose_launch_V2 import PoseLaunchV2
 
 class RobotContainer:
     """
@@ -149,6 +150,8 @@ class RobotContainer:
         self.m_chooser.addOption("TrenchOnlyXL-Left", PathPlannerAuto("TrenchOnlyXL-Right", True))
         self.m_chooser.addOption("TrenchRunXS-Right", PathPlannerAuto("TrenchRunXS-Right", False))
         self.m_chooser.addOption("TrenchRunXS-Left", PathPlannerAuto("TrenchRunXS-Right", True))
+        self.m_chooser.addOption("Fast-Right", PathPlannerAuto("Fast-Right", False))
+        self.m_chooser.addOption("Fast-Left", PathPlannerAuto("Fast-Right", True))
         self.m_chooser.addOption("Preload", PathPlannerAuto("Preload", False))
         self.m_chooser.addOption("Depot", PathPlannerAuto("Depot", False))
         self.m_chooser.addOption("Outpost", PathPlannerAuto("Outpost", False))
@@ -238,6 +241,7 @@ class RobotContainer:
         # Automatic Launch command.
         self.driver_controller.rightBumper().and_(lambda: not self.test_bindings).whileTrue(
             ParallelCommandGroup(
+                # PoseLaunchV2(self.drivetrain, self.launcher, self.hopper, self.intake, self.util, self.driver_controller),
                 PoseLaunch(self.drivetrain, self.launcher, self.hopper, self.intake, self.util),
                 runOnce(lambda: self.leds.set_state("yellow_chaser"), self.leds)
             )
@@ -275,7 +279,10 @@ class RobotContainer:
 
         # Launcher Tuning controls
         self.driver_controller.povLeft().and_(lambda: not self.test_bindings).onTrue(
-            runOnce(lambda: self.launcher.live_reconfigure(), self.launcher).ignoringDisable(True)
+            SequentialCommandGroup(
+                runOnce(lambda: self.launcher.live_reconfigure(), self.launcher).ignoringDisable(True),
+                runOnce(lambda: self.intake.live_reconfigure(), self.intake).ignoringDisable(True)
+            )
         )
         self.driver_controller.povRight().and_(lambda: not self.test_bindings).whileTrue(
             TestLaunch(self.drivetrain, self.launcher, self.hopper, self.intake)
@@ -422,6 +429,20 @@ class RobotContainer:
         self.operator_controller.povDown().onTrue(
             runOnce(lambda: self.launcher.update_launcher_trim(-0.02), self.launcher)
         )
+        # self.operator_controller.rightBumper().onTrue(
+        #     runOnce(lambda: self.hopper.set_extender("deployed"), self.hopper))
+        # # ).onFalse(
+        # #     runOnce(lambda: self.hopper.manual_extender(0), self.hopper)
+        # # )
+        # self.operator_controller.leftBumper().onTrue(
+        #     runOnce(lambda: self.hopper.set_extender("retracted"), self.hopper))
+        # ).onFalse(
+        #     runOnce(lambda: self.hopper.manual_extender(0), self.hopper)
+        # )
+        # self.operator_controller.a().onTrue(
+        #     runOnce(lambda: self.hopper.reset_extender(), self.hopper)
+        # )
+
         # self.operator_controller.a().onTrue(
         #     run(lambda: self.climber.manual_control(self.operator_controller.getLeftY()), self.climber)
         # ).onFalse(
@@ -531,10 +552,11 @@ class RobotContainer:
         NamedCommands.registerCommand(
             "launch",
             SequentialCommandGroup(
+                runOnce(lambda: self.drivetrain.clt_request.heading_controller.reset()),
                 SequentialCommandGroup(
                     AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)
-                ).repeatedly().withTimeout(3.5),
+                ).repeatedly().withTimeout(4),
             AutoEndLaunch(self.launcher, self.drivetrain, self.intake, self.hopper),
             self.drivetrain.apply_request(lambda: self._brake).withTimeout(0.02),
             # ResetCLT(self.drivetrain)
@@ -543,6 +565,7 @@ class RobotContainer:
         NamedCommands.registerCommand(
             "launch_long",
             SequentialCommandGroup(
+                runOnce(lambda: self.drivetrain.clt_request.heading_controller.reset()),
                 SequentialCommandGroup(
                     AutoLaunch(self.drivetrain, self.launcher, self.hopper, self.intake),
                     self.drivetrain.apply_request(lambda: self.drivetrain.saved_request).withTimeout(0.02)

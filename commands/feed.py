@@ -31,7 +31,7 @@ class Feed(Command):
 
     def execute(self):
         self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_feed_alignment_heading(0.5)))
-        self.launcher.set_target_by_range(max(self.drive.get_auto_lookahead_range_to_feed(0.5) - 1, 0))
+        self.launcher.set_target_by_range(max(self.drive.get_auto_lookahead_range_to_feed(0.5) - 0.75, 0))
 
         if self.launcher.get_at_target() and not self._launching_active:
             self.hopper.set_state("launching")

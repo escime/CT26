@@ -1,7 +1,7 @@
 from commands2 import Subsystem
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, VelocityTorqueCurrentFOC, VelocityVoltage, TorqueCurrentFOC
+from phoenix6.controls import VoltageOut, VelocityTorqueCurrentFOC, VelocityVoltage, TorqueCurrentFOC, PositionVoltage
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
 from phoenix6.signals import MotorAlignmentValue, NeutralModeValue
@@ -96,9 +96,38 @@ class HopperSubsystem(Subsystem):
         if not status.is_ok():
             print(f"Could not apply configs, error code: {status.name}")
 
+        # Extender Setup --------------------------------------------------------------------------------------------------
+        # self.extender = TalonFX(53, CANBus("rio"))
+        #
+        # extender_configs = TalonFXConfiguration()
+        #
+        # extender_configs.current_limits.stator_current_limit = 60
+        # extender_configs.current_limits.stator_current_limit_enable = True
+        # extender_configs.current_limits.supply_current_limit = 30
+        # extender_configs.current_limits.supply_current_limit_enable = True
+        # extender_configs.motor_output.inverted = HopperConstants.feeder_direction
+        # extender_configs.motor_output.neutral_mode = NeutralModeValue.BRAKE
+        #
+        # extender_pid_configs = extender_configs.slot0
+        # extender_pid_configs.k_p = 1
+        # extender_pid_configs.k_i = 0
+        # extender_pid_configs.k_d = 0
+        #
+        # self.extender_pid = PositionVoltage(0, 0, True)
+        # self.extender_volts = VoltageOut(0)
+        #
+        # status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        # for _ in range(0, 5):
+        #     status = self.feeder.configurator.apply(feeder_configs)
+        #     if status.is_ok():
+        #         break
+        # if not status.is_ok():
+        #     print(f"Could not apply configs, error code: {status.name}")
+
         # Other Setup --------------------------------------------------------------------------------------------------
         self.last_time = get_current_time_seconds()
         self._jam_clear_activate = get_current_time_seconds()
+        self._launching_time = get_current_time_seconds()
 
     def set_state(self, state: str) -> None:
         self.state = state
@@ -108,6 +137,8 @@ class HopperSubsystem(Subsystem):
         self.right_indexer.set_control(self.hopper_foc.with_output(self.state_values[state][0]))
         # self.feeder.set_control(self.feeder_vel.with_velocity(self.state_values[state][2]))
         self.feeder.set_control(self.feeder_volts.with_output(self.state_values[state][2]))
+        if state == "launching":
+            self._launching_time = get_current_time_seconds()
 
         if state == "jam_clear":
             self._jam_clear_activate = get_current_time_seconds()
@@ -117,6 +148,24 @@ class HopperSubsystem(Subsystem):
 
     def set_debug_mode(self, on: bool) -> None:
         self._debug_mode = on
+
+    def get_still_launching(self) -> bool:
+        if self._launching_time - get_current_time_seconds() > 0.5:
+            return False
+        else:
+            return True
+        
+    # def set_extender(self, state: str) -> None:
+    #     if state == "deployed":
+    #         self.extender.set_control(self.extender_pid.with_position(5))
+    #     else:
+    #         self.extender.set_control(self.extender_pid.with_position(0))
+    #
+    # def manual_extender(self, volts: float) -> None:
+    #     self.extender.set_control(self.extender_volts.with_output(volts))
+    #
+    # def reset_extender(self) -> None:
+    #     self.extender.set_position(0)
 
     # def update_sim(self):
     #     current_time = get_current_time_seconds()
@@ -130,6 +179,16 @@ class HopperSubsystem(Subsystem):
             self._hopper_table.putString("Hopper State", self.get_state())
             self._hopper_table.putNumber("Feeder Velocity", self.feeder.get_velocity().value_as_double)
             self._hopper_table.putNumber("Feeder Target Velocity", self.state_values[self.state][2])
+            self._hopper_table.putNumber("Hopper Current Draw Right", self.right_indexer.get_torque_current().value_as_double)
+            self._hopper_table.putNumber("Hopper Current Draw Left", self.left_indexer.get_torque_current().value_as_double)
+            self._hopper_table.putNumber("Feeder Current Draw", self.feeder.get_torque_current().value_as_double)
+            # self._hopper_table.putNumber("Extender Length", self.extender.get_position().value_as_double)
 
-        if self.state == "jam_clear" and get_current_time_seconds() - self._jam_clear_activate > 1:
+        if self.state == "launching":
+            if self.right_indexer.get_torque_current().value_as_double > 100 or \
+                self.left_indexer.get_torque_current().value_as_double > 100 or \
+                    self.feeder.get_torque_current().value_as_double > 100:
+                self._launching_time = get_current_time_seconds()
+
+        if self.state == "jam_clear" and get_current_time_seconds() - self._jam_clear_activate > 0.5:
             self.set_state("off")

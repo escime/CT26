@@ -34,13 +34,13 @@ class ManualLaunch(Command):
         self.intake.set_state("deployed")
         self._launching_active = False
 
-        self.adder = 0
+        self.adder = 360
         if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
             self.adder = 180
 
     def execute(self):
         if self.setpoint == "tower" and not self.get_clt_on_target():
-            self.drive.set_clt_target_direction(Rotation2d.fromDegrees(self.drive.get_goal_alignment_heading(0.25)))
+            self.drive.set_clt_target_direction(Rotation2d.fromDegrees(0))
         else:
             self.drive.apply_request(lambda: self.brake).withTimeout(0.01).schedule()
 

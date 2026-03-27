@@ -65,6 +65,8 @@ class TunerConstants:
         configs.CurrentLimitsConfigs()
         .with_stator_current_limit(80)
         .with_stator_current_limit_enable(True)
+        .with_supply_current_limit(40)
+        .with_supply_current_limit_enable(True)
     )
     _steer_initial_configs = configs.TalonFXConfiguration().with_current_limits(
         configs.CurrentLimitsConfigs()
@@ -72,6 +74,8 @@ class TunerConstants:
         # stator current limit to help avoid brownouts without impacting performance.
         .with_stator_current_limit(60.0)
         .with_stator_current_limit_enable(True)
+        .with_supply_current_limit(30)
+        .with_supply_current_limit_enable(True)
     )
     _encoder_initial_configs = configs.CANcoderConfiguration()
     # Configs for the Pigeon 2; leave this None to skip applying Pigeon 2 configs

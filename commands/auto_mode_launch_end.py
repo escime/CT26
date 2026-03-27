@@ -22,6 +22,7 @@ class AutoEndLaunch(Command):
     def initialize(self):
         self.launcher.set_state("off")
         self.hopper.set_state("jam_clear")
+        self.intake.set_state("intake")
 
     def isFinished(self) -> bool:
         return True

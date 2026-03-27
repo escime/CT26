@@ -1,7 +1,7 @@
 from commands2 import Subsystem
 
 from phoenix6.hardware import TalonFX
-from phoenix6.controls import VoltageOut, Follower, TorqueCurrentFOC, PositionVoltage
+from phoenix6.controls import VoltageOut, Follower, TorqueCurrentFOC, PositionVoltage, MotionMagicVoltage
 from phoenix6.configs import TalonFXConfiguration
 from phoenix6.status_code import StatusCode
 from phoenix6.signals import MotorAlignmentValue
@@ -14,7 +14,7 @@ from wpimath.units import radiansToRotations, inchesToMeters, lbsToKilograms
 from ntcore import NetworkTableInstance
 
 from math import pi
-from constants import IntakeConstants
+from constants import IntakeConstants, LauncherConstants
 
 
 class IntakeSubsystem(Subsystem):
@@ -66,6 +66,7 @@ class IntakeSubsystem(Subsystem):
                                                    True
                                                    )
         self.intake_deploy_pid = PositionVoltage(0, 0, True)
+        self.intake_deploy_mm = MotionMagicVoltage(0, True)
 
         intake_deploy_config.motor_output.neutral_mode = intake_deploy_config.motor_output.neutral_mode.COAST
         intake_deploy_config.motor_output.inverted = intake_deploy_config.motor_output.inverted.COUNTER_CLOCKWISE_POSITIVE
@@ -77,9 +78,21 @@ class IntakeSubsystem(Subsystem):
         intake_deploy_config.feedback.sensor_to_mechanism_ratio = IntakeConstants.intake_deploy_gear_ratio
 
         intake_deploy_pid_config = intake_deploy_config.slot0
-        intake_deploy_pid_config.k_p = 0.01
+        intake_deploy_pid_config.k_p = 100
         intake_deploy_pid_config.k_i = 0
         intake_deploy_pid_config.k_d = 0
+
+        intake_deploy_mm_configs = intake_deploy_config.motion_magic
+        intake_deploy_mm_configs.motion_magic_jerk = 100
+        intake_deploy_mm_configs.motion_magic_acceleration = 200
+        intake_deploy_mm_configs.motion_magic_cruise_velocity = 200
+
+        self._intake_table.putNumber("ID P", intake_deploy_pid_config.k_p)
+        self._intake_table.putNumber("ID I", intake_deploy_pid_config.k_i)
+        self._intake_table.putNumber("ID D", intake_deploy_pid_config.k_d)
+        self._intake_table.putNumber("ID Jerk", intake_deploy_mm_configs.motion_magic_jerk)
+        self._intake_table.putNumber("ID Accl", intake_deploy_mm_configs.motion_magic_acceleration)
+        self._intake_table.putNumber("ID Velo", intake_deploy_mm_configs.motion_magic_cruise_velocity)
 
 
         intake_deploy_torque_config = intake_deploy_config.torque_current
@@ -102,7 +115,7 @@ class IntakeSubsystem(Subsystem):
         self.arm_sim = SingleJointedArmSim(
             DCMotor.krakenX60(1),
             IntakeConstants.intake_deploy_gear_ratio,
-            SingleJointedArmSim.estimateMOI(inchesToMeters(12), lbsToKilograms(5)),
+            SingleJointedArmSim.estimateMOI(inchesToMeters(12), lbsToKilograms(8)),
             inchesToMeters(3),
             -0.1,
             pi + 0.1,
@@ -117,6 +130,12 @@ class IntakeSubsystem(Subsystem):
 
     def set_state(self, state: str) -> None:
         self.state = state
+        # if state == "launching":
+        #     self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
+        #     self.set_launch_hold()
+        # else:
+        #     self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][1]))
+        #     self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
         self.intake_deploy.set_control(self.intake_deploy_tfoc.with_output(self.state_values[state][1]))
         self.intake_leader.set_control(self.intake_volts.with_output(self.state_values[state][0]))
 
@@ -134,6 +153,49 @@ class IntakeSubsystem(Subsystem):
             return True
         else:
             return False
+
+    def get_launched(self) -> bool:
+        if self.intake_deploy.get_position().value_as_double <= IntakeConstants.launched_amount:
+            return True
+        else:
+            return False
+
+    def set_launch_hold(self) -> None:
+        self.state = "launching"
+        self.intake_deploy.set_control(self.intake_deploy_mm.with_position(IntakeConstants.launched_amount)) #TODO time for weird science
+
+    def live_reconfigure(self) -> None:
+        intake_deploy_config = TalonFXConfiguration()
+        intake_deploy_config.motor_output.neutral_mode = intake_deploy_config.motor_output.neutral_mode.COAST
+        intake_deploy_config.motor_output.inverted = intake_deploy_config.motor_output.inverted.COUNTER_CLOCKWISE_POSITIVE
+
+        intake_deploy_config.current_limits.supply_current_limit = IntakeConstants.intake_deploy_stator_current_limit
+        intake_deploy_config.current_limits.supply_current_limit_enable = True
+        intake_deploy_config.current_limits.stator_current_limit = IntakeConstants.intake_deploy_stator_current_limit
+        intake_deploy_config.current_limits.stator_current_limit_enable = True
+        intake_deploy_config.feedback.sensor_to_mechanism_ratio = IntakeConstants.intake_deploy_gear_ratio
+
+        intake_deploy_pid_config = intake_deploy_config.slot0
+        intake_deploy_pid_config.k_p = self._intake_table.getNumber("ID P", 0.01)
+        intake_deploy_pid_config.k_i = self._intake_table.getNumber("ID I", 0)
+        intake_deploy_pid_config.k_d = self._intake_table.getNumber("ID D", 0)
+
+        intake_deploy_mm_configs = intake_deploy_config.motion_magic
+        intake_deploy_mm_configs.motion_magic_jerk = self._intake_table.getNumber("ID Jerk", 100)
+        intake_deploy_mm_configs.motion_magic_acceleration = self._intake_table.getNumber("ID Accl", 5)
+        intake_deploy_mm_configs.motion_magic_cruise_velocity = self._intake_table.getNumber("ID Velo", 5)
+
+        intake_deploy_torque_config = intake_deploy_config.torque_current
+        intake_deploy_torque_config.with_torque_neutral_deadband(1)
+
+        status: StatusCode = StatusCode.STATUS_CODE_NOT_INITIALIZED
+        for _ in range(0, 5):
+            status = self.intake_deploy.configurator.apply(intake_deploy_config)
+            if status.is_ok():
+                print("Configuration applied.")
+                break
+        if not status.is_ok():
+            print(f"Could not apply configs, error code: {status.name}")
 
     def get_state(self) -> str:
         return self.state
@@ -161,14 +223,44 @@ class IntakeSubsystem(Subsystem):
             else:
                 self._intake_table.putBoolean("Intake Rollers On?", False)
 
-        if self.state == "launching" or self.state == "launching_reverse":
-            if get_current_time_seconds() - self._last_launch_cycle > 0.25:
+        if self.state == "launching":
+            if get_current_time_seconds() - self._last_launch_cycle > 0.5:
                 self._last_launch_cycle_up = not self._last_launch_cycle_up
 
-                if self._last_launch_cycle_up and not self.get_retracted():
+                if self._last_launch_cycle_up and not self.get_launched():
                     self.set_state("launching")
                 else:
                     self.set_state("launching_reverse")
+
+                self._last_launch_cycle = get_current_time_seconds()
+        elif self.state == "launching_reverse":
+            if get_current_time_seconds() - self._last_launch_cycle > 0.125:
+                self._last_launch_cycle_up = not self._last_launch_cycle_up
+
+                if self._last_launch_cycle_up and not self.get_launched():
+                    self.set_state("launching")
+                else:
+                    self.set_state("launching_reverse")
+
+        # if self.state == "launching":
+        #     if get_current_time_seconds() - self._last_launch_cycle > 0.5:
+        #         self._last_launch_cycle_up = not self._last_launch_cycle_up
+        #
+        #         if self._last_launch_cycle_up and not self.get_launched():
+        #             self.set_launch_hold()
+        #         else:
+        #             self.set_state("launching_reverse")
+        #
+        #         self._last_launch_cycle = get_current_time_seconds()
+        # elif self.state == "launching_reverse":
+        #     if get_current_time_seconds() - self._last_launch_cycle > 0.125:
+        #         self._last_launch_cycle_up = not self._last_launch_cycle_up
+        #
+        #         if self._last_launch_cycle_up and not self.get_launched():
+        #             self.set_launch_hold()
+        #         else:
+        #             self.set_state("launching_reverse")
+
 
                 self._last_launch_cycle = get_current_time_seconds()
 

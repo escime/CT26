@@ -65,6 +65,7 @@ class Robot(TimedCommandRobot):
             self.m_autonomous_command.cancel()
         cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.reset_clt(),
                     self.m_robotcontainer.drivetrain).schedule()
+        cmd.runOnce(lambda: self.m_robotcontainer.launcher.set_state("off"), self.m_robotcontainer.launcher)
         # cmd.runOnce(lambda: self.m_robotcontainer.drivetrain.set_3d(False),
         #             self.m_robotcontainer.drivetrain).schedule()
 

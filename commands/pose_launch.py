@@ -31,6 +31,8 @@ class PoseLaunch(Command):
         self.addRequirements(intake)
         self.addRequirements(util)
 
+        SmartDashboard.putNumber("PL Kp", 9)
+
     def initialize(self):
         self.launcher.set_state("standby")
         self.intake.set_state("deployed")
@@ -39,6 +41,8 @@ class PoseLaunch(Command):
         self.drive.set_auto_slow(True)
 
         self._launching_active = False
+
+        self.drive.clt_request.heading_controller.setP(SmartDashboard.getNumber("PL Kp", 5.3))
 
         self.adder = 360
         if DriverStation.getAlliance() == DriverStation.Alliance.kRed:
@@ -64,6 +68,7 @@ class PoseLaunch(Command):
             pass
 
     def end(self, interrupted: bool):
+        self.drive.clt_request.heading_controller.setP(5.3)
         self.launcher.set_state("off")
         self.hopper.set_state("jam_clear")
         # self.intake.set_state("stow")
